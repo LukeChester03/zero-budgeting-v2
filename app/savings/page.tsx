@@ -1,0 +1,1018 @@
+"use client";
+
+import React, { useMemo, useState } from "react";
+import { motion, Variants } from "framer-motion";
+import { useFirebaseStore } from "@/lib/store-firebase";
+import { useAuth } from "@/lib/auth-context";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { 
+  PiggyBank, 
+  TrendingUp, 
+  Target, 
+  Calendar,
+  DollarSign,
+  ArrowUpRight,
+  ArrowDownRight,
+  Clock,
+  Sparkles,
+  BarChart3,
+  Goal,
+  AlertCircle,
+  CheckCircle,
+  Plus,
+  Eye,
+  Calculator,
+  Trash2,
+  Edit,
+  Umbrella,
+  Car,
+  Home,
+  LifeBuoy
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+
+// Animation variants
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { type: "spring", stiffness: 200, damping: 25 },
+  },
+};
+
+// Icon map for goal types
+const GOAL_ICONS = {
+  emergency: { icon: <LifeBuoy className="h-4 w-4" />, label: "Emergency" },
+  vacation: { icon: <Umbrella className="h-4 w-4" />, label: "Vacation" },
+  car: { icon: <Car className="h-4 w-4" />, label: "Car" },
+  home: { icon: <Home className="h-4 w-4" />, label: "Home" },
+  piggy: { icon: <PiggyBank className="h-4 w-4" />, label: "Savings" },
+} as const;
+
+type GoalIconKey = keyof typeof GOAL_ICONS;
+
+interface GoalFormData {
+  title: string;
+  target: string;
+  iconKey: GoalIconKey;
+}
+
+export default function SavingsDashboard() {
+  const { user } = useAuth();
+  const budgets = useFirebaseStore((s) => s.budgets);
+  const goals = useFirebaseStore((s) => s.goals);
+  const income = useFirebaseStore((s) => s.income);
+  const getTotalSaved = useFirebaseStore((s) => s.getTotalSaved);
+  const getSavedAmountForGoal = useFirebaseStore((s) => s.getSavedAmountForGoal);
+  const addGoal = useFirebaseStore((s) => s.addGoal);
+  const updateGoal = useFirebaseStore((s) => s.updateGoal);
+  const deleteGoal = useFirebaseStore((s) => s.deleteGoal);
+
+  // Goal form state
+  const [goalForm, setGoalForm] = useState<GoalFormData>({
+    title: "",
+    target: "",
+    iconKey: "piggy",
+  });
+  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
+  const [formErrors, setFormErrors] = useState<{ title?: string; target?: string }>({});
+
+  // Calculate comprehensive savings data
+  const savingsData = useMemo(() => {
+    const savingsCategories = ["Emergency Fund", "Investments", "Pension"];
+    const totalSaved = getTotalSaved();
+    
+    // Calculate monthly average savings
+    const monthlySavings = budgets.length > 0 
+      ? totalSaved / budgets.length 
+      : 0;
+    
+    // Calculate savings rate
+    const savingsRate = income > 0 ? (totalSaved / income) * 100 : 0;
+    
+    // Calculate projections
+    const monthlyProjection = monthlySavings * 12; // Annual projection
+    const sixMonthProjection = monthlySavings * 6;
+    const oneYearProjection = monthlySavings * 12;
+    
+    // Calculate category breakdown
+    const categoryBreakdown = savingsCategories.map(category => {
+      const amount = budgets.reduce((sum, budget) => {
+        const allocation = budget.allocations.find(a => a.category === category);
+        return sum + (allocation?.amount || 0);
+      }, 0);
+      return { category, amount, percentage: totalSaved > 0 ? (amount / totalSaved) * 100 : 0 };
+    });
+    
+    // Calculate trend (last 3 months vs previous 3 months)
+    const recentBudgets = budgets.slice(-3);
+    const previousBudgets = budgets.slice(-6, -3);
+    
+    const recentSavings = recentBudgets.reduce((sum, budget) => {
+      const savings = budget.allocations
+        .filter(alloc => savingsCategories.includes(alloc.category))
+        .reduce((total, alloc) => total + alloc.amount, 0);
+      return sum + savings;
+    }, 0);
+    
+    const previousSavings = previousBudgets.reduce((sum, budget) => {
+      const savings = budget.allocations
+        .filter(alloc => savingsCategories.includes(alloc.category))
+        .reduce((total, alloc) => total + alloc.amount, 0);
+      return sum + savings;
+    }, 0);
+    
+    const trendPercentage = previousSavings > 0 
+      ? ((recentSavings - previousSavings) / previousSavings) * 100 
+      : 0;
+    
+    // Calculate goal progress
+    const goalProgress = goals.map(goal => {
+      const saved = getSavedAmountForGoal(goal.title);
+      const progress = goal.target > 0 ? (saved / goal.target) * 100 : 0;
+      const remaining = goal.target - saved;
+      const monthsToComplete = monthlySavings > 0 ? remaining / monthlySavings : 0;
+      
+      return {
+        ...goal,
+        saved,
+        progress,
+        remaining,
+        monthsToComplete,
+        isOnTrack: monthlySavings > 0 && monthsToComplete <= 12
+      };
+    });
+
+    // Prepare chart data
+    const savingsOverTime = budgets.slice(-6).map(budget => {
+      const savings = budget.allocations
+        .filter(alloc => savingsCategories.includes(alloc.category))
+        .reduce((total, alloc) => total + alloc.amount, 0);
+      return {
+        month: budget.month,
+        savings: savings,
+        cumulative: 0 // Will be calculated below
+      };
+    });
+
+    // Calculate cumulative savings
+    let cumulative = 0;
+    savingsOverTime.forEach(item => {
+      cumulative += item.savings;
+      item.cumulative = cumulative;
+    });
+
+    // Prepare category chart data
+    const categoryChartData = categoryBreakdown.map(item => ({
+      name: item.category,
+      value: item.amount,
+      percentage: item.percentage
+    }));
+    
+    return {
+      totalSaved,
+      monthlySavings,
+      savingsRate,
+      monthlyProjection,
+      sixMonthProjection,
+      oneYearProjection,
+      categoryBreakdown,
+      trendPercentage,
+      goalProgress,
+      recentSavings,
+      previousSavings,
+      savingsOverTime,
+      categoryChartData
+    };
+  }, [budgets, goals, income, getTotalSaved, getSavedAmountForGoal]);
+
+  const getTrendIcon = (trend: number) => {
+    if (trend > 0) return <ArrowUpRight className="h-4 w-4 text-green-500" />;
+    if (trend < 0) return <ArrowDownRight className="h-4 w-4 text-red-500" />;
+    return <TrendingUp className="h-4 w-4 text-muted-foreground" />;
+  };
+
+  const getTrendColor = (trend: number) => {
+    if (trend > 0) return "text-green-600";
+    if (trend < 0) return "text-red-600";
+    return "text-muted-foreground";
+  };
+
+  // Goal form handlers
+  const validateGoalForm = (): boolean => {
+    const errors: { title?: string; target?: string } = {};
+    
+    if (!goalForm.title.trim()) {
+      errors.title = "Goal title is required";
+    } else if (goals.some(g => g.title.toLowerCase() === goalForm.title.trim().toLowerCase())) {
+      errors.title = "Goal title already exists";
+    }
+    
+    const targetNum = parseFloat(goalForm.target);
+    if (!goalForm.target || isNaN(targetNum) || targetNum <= 0) {
+      errors.target = "Valid target amount is required";
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleAddGoal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateGoalForm()) return;
+    
+    try {
+      await addGoal({
+        title: goalForm.title.trim(),
+        target: parseFloat(goalForm.target),
+        iconKey: goalForm.iconKey,
+        saved: 0, // Start with 0 saved amount
+      });
+      
+      // Reset form
+      setGoalForm({ title: "", target: "", iconKey: "piggy" });
+      setFormErrors({});
+      setIsGoalModalOpen(false);
+    } catch (error) {
+      console.error('Error adding goal:', error);
+      // You could add a toast notification here for error feedback
+    }
+  };
+
+  const handleInputChange = (field: keyof GoalFormData, value: string | GoalIconKey) => {
+    setGoalForm(prev => ({ ...prev, [field]: value }));
+    setFormErrors(prev => ({ ...prev, [field]: undefined }));
+  };
+
+  const handleDeleteGoal = async (goalId: string) => {
+    try {
+      await deleteGoal(goalId);
+    } catch (error) {
+      console.error('Error deleting goal:', error);
+      // You could add a toast notification here for error feedback
+    }
+  };
+
+  // Check if user is authenticated
+  if (!user) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20"
+      >
+        <div className="container mx-auto px-6 py-24">
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="max-w-2xl mx-auto text-center"
+          >
+            <motion.div variants={itemVariants}>
+              <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
+                <CardContent className="p-12">
+                  <div className="text-center space-y-6">
+                    <div className="text-6xl mb-4">🔐</div>
+                    <h2 className="text-2xl font-bold">Authentication Required</h2>
+                    <p className="text-muted-foreground">
+                      Please sign in to view your savings dashboard.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </motion.div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20"
+    >
+      {/* Hero Section */}
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent" />
+        <div className="relative container mx-auto px-6 py-24">
+          <motion.div variants={itemVariants} className="text-center mb-12">
+            <div className="flex items-center justify-center gap-2 mb-6">
+              <PiggyBank className="h-8 w-8 text-primary" />
+              <h1 className="text-4xl md:text-6xl font-bold text-primary">
+                Savings Dashboard
+              </h1>
+            </div>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Track your progress, set goals, and see your financial future
+            </p>
+        </motion.div>
+
+          {/* Key Metrics */}
+          <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <PiggyBank className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Saved</p>
+                    <p className="text-2xl font-bold">£{savingsData.totalSaved.toFixed(2)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-background/80 backdrop-blur-sm border-green-500/20">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-500/10 rounded-lg">
+                    <TrendingUp className="h-6 w-6 text-green-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Monthly Average</p>
+                    <p className="text-2xl font-bold text-green-600">£{savingsData.monthlySavings.toFixed(2)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-background/80 backdrop-blur-sm border-blue-500/20">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-500/10 rounded-lg">
+                    <BarChart3 className="h-6 w-6 text-blue-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Savings Rate</p>
+                    <p className="text-2xl font-bold text-blue-600">{savingsData.savingsRate.toFixed(1)}%</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-background/80 backdrop-blur-sm border-purple-500/20">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-500/10 rounded-lg">
+                    <Target className="h-6 w-6 text-purple-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Active Goals</p>
+                    <p className="text-2xl font-bold text-purple-600">{goals.length}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+        </motion.div>
+        </div>
+      </section>
+
+      <div className="container mx-auto px-6 pb-12">
+        {/* Instructions */}
+        <motion.section variants={itemVariants} className="mb-8 mt-16">
+          <Card className="bg-green-50 border-green-200">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <PiggyBank className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-green-900 mb-2">Savings Dashboard Guide</h3>
+                  <div className="space-y-2 text-sm text-green-800">
+                    <p><strong>Key Metrics:</strong> Track your total savings, monthly average, savings rate, and active goals.</p>
+                    <p><strong>Savings Goals:</strong> Set and track progress towards specific financial targets like emergency funds or big purchases.</p>
+                    <p><strong>Progress Charts:</strong> Visualize your savings growth over time and see how your money is distributed across categories.</p>
+                    <p><strong>Insights:</strong> Get personalized tips and recommendations to improve your saving habits.</p>
+                    <p className="text-green-700 font-medium">💡 Tip: Create savings goals to stay motivated and track your progress towards financial milestones.</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.section>
+
+        {/* Charts Section */}
+        <motion.section variants={itemVariants} className="mb-8 mt-16">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Savings Over Time Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Savings Over Time
+                </CardTitle>
+                <CardDescription>
+                  Your monthly savings and cumulative progress
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                                {false ? (
+                   <ChartContainer
+                     config={{
+                       savings: {
+                         label: "Monthly Savings",
+                         theme: {
+                           light: "hsl(var(--primary))",
+                           dark: "hsl(var(--primary))",
+                         },
+                       },
+                       cumulative: {
+                         label: "Cumulative Savings",
+                         theme: {
+                           light: "hsl(var(--ring))",
+                           dark: "hsl(var(--ring))",
+                         },
+                       },
+                     }}
+                     className="h-64"
+                   >
+                    <LineChart data={savingsData.savingsOverTime}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis 
+                        dataKey="month" 
+                        tickFormatter={(value) => {
+                          const date = new Date(value);
+                          return date.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+                        }}
+                      />
+                      <YAxis 
+                        tickFormatter={(value) => `£${value}`}
+                      />
+                      <ChartTooltip 
+                        content={({ active, payload, label }) => {
+                          if (!active || !payload?.length) return null;
+                          const date = new Date(label);
+                          return (
+                            <ChartTooltipContent
+                              active={active}
+                              payload={payload}
+                              label={date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
+                              formatter={(value: any, name: any) => [`£${value.toFixed(2)}`, String(name)]}
+                            />
+                          );
+                        }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="savings" 
+                        strokeWidth={3}
+                        dot={{ strokeWidth: 2, r: 4 }}
+                        activeDot={{ r: 6, strokeWidth: 2 }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="cumulative" 
+                        strokeWidth={2}
+                        strokeDasharray="5 5"
+                        dot={{ strokeWidth: 2, r: 3 }}
+                        activeDot={{ r: 5, strokeWidth: 2 }}
+                      />
+                    </LineChart>
+                  </ChartContainer>
+                ) : (
+                  <div className="h-64 flex items-center justify-center text-muted-foreground">
+                    <div className="text-center">
+                      <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>Need 3+ months of data</p>
+                      <p className="text-sm">Create at least 3 budgets to see your savings progress over time</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Category Breakdown Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Savings Breakdown
+                </CardTitle>
+                <CardDescription>
+                  Distribution of your savings by category
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                                {false ? (
+                   <ChartContainer
+                     config={{
+                       value: {
+                         label: "Amount",
+                         theme: {
+                           light: "hsl(var(--primary))",
+                           dark: "hsl(var(--primary))",
+                         },
+                       },
+                     }}
+                     className="h-64"
+                   >
+                     <BarChart data={savingsData.categoryChartData}>
+                       <CartesianGrid strokeDasharray="3 3" />
+                       <XAxis 
+                         dataKey="name" 
+                         angle={-45}
+                         textAnchor="end"
+                         height={80}
+                       />
+                       <YAxis 
+                         tickFormatter={(value) => `£${value}`}
+                       />
+                       <ChartTooltip 
+                         content={({ active, payload, label }) => {
+                           if (!active || !payload?.length) return null;
+                           return (
+                             <ChartTooltipContent
+                               active={active}
+                               payload={payload}
+                               label={label}
+                               formatter={(value: any, name: any) => [`£${value.toFixed(2)}`, 'Amount']}
+                             />
+                           );
+                         }}
+                       />
+                       <Bar 
+                         dataKey="value" 
+                         radius={[4, 4, 0, 0]}
+                       />
+                     </BarChart>
+                   </ChartContainer>
+                 ) : (
+                  <div className="h-64 flex items-center justify-center text-muted-foreground">
+                    <div className="text-center">
+                      <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No savings data yet</p>
+                      <p className="text-sm">Allocate money to Emergency Fund, Investments, or Pension categories to see breakdown</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </motion.section>
+
+        {/* Savings Trend & Projections */}
+        <motion.section variants={itemVariants} className="mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Savings Trend */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Savings Trend
+                </CardTitle>
+                <CardDescription>
+                  Your savings performance over time
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Recent 3 Months</p>
+                    <p className="text-2xl font-bold">£{savingsData.recentSavings.toFixed(2)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground">Previous 3 Months</p>
+                    <p className="text-2xl font-bold">£{savingsData.previousSavings.toFixed(2)}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2 p-4 rounded-lg bg-muted/50">
+                  {getTrendIcon(savingsData.trendPercentage)}
+                  <span className={cn("font-semibold", getTrendColor(savingsData.trendPercentage))}>
+                    {savingsData.trendPercentage > 0 ? "+" : ""}{savingsData.trendPercentage.toFixed(1)}%
+                  </span>
+                  <span className="text-sm text-muted-foreground">vs previous period</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Projections */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calculator className="h-5 w-5" />
+                  Future Projections
+                </CardTitle>
+                <CardDescription>
+                  Based on your current savings rate
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-green-600" />
+                      <span className="font-medium">6 Months</span>
+                    </div>
+                    <span className="font-bold text-green-600">£{savingsData.sixMonthProjection.toFixed(2)}</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-blue-600" />
+                      <span className="font-medium">1 Year</span>
+                    </div>
+                    <span className="font-bold text-blue-600">£{savingsData.oneYearProjection.toFixed(2)}</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-purple-600" />
+                      <span className="font-medium">Annual Rate</span>
+                    </div>
+                    <span className="font-bold text-purple-600">{savingsData.savingsRate.toFixed(1)}%</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </motion.section>
+
+        {/* Category Breakdown & Goals */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* Category Breakdown */}
+          <motion.section variants={itemVariants}>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PieChart className="h-5 w-5" />
+                  Savings Breakdown
+                </CardTitle>
+                <CardDescription>
+                  Where your savings are allocated
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {savingsData.categoryBreakdown.map((category) => (
+                  <div key={category.category} className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium">{category.category}</span>
+                      <span className="font-semibold">£{category.amount.toFixed(2)}</span>
+                    </div>
+                    <Progress value={category.percentage} className="h-2" />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{category.percentage.toFixed(1)}% of total</span>
+                      <span>{category.amount > 0 ? "£" + category.amount.toFixed(2) : "£0.00"}</span>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </motion.section>
+
+          {/* Goals Progress */}
+          <motion.section variants={itemVariants}>
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Goal className="h-5 w-5" />
+                    <CardTitle>Goals Progress</CardTitle>
+                  </div>
+                  <Dialog open={isGoalModalOpen} onOpenChange={setIsGoalModalOpen}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" className="bg-primary hover:bg-primary/90">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Goal
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                      <DialogHeader>
+                        <DialogTitle>Create New Savings Goal</DialogTitle>
+                        <DialogDescription>
+                          Set a new financial goal and track your progress towards it.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <form onSubmit={handleAddGoal} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="goal-title">Goal Title</Label>
+                          <Input
+                            id="goal-title"
+                            placeholder="e.g., Vacation Fund"
+                            value={goalForm.title}
+                            onChange={(e) => handleInputChange("title", e.target.value)}
+                            className={cn(formErrors.title && "border-destructive")}
+                          />
+                          {formErrors.title && (
+                            <p className="text-xs text-destructive">{formErrors.title}</p>
+                          )}
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="goal-target">Target Amount</Label>
+                            <Input
+                              id="goal-target"
+                              type="number"
+                              placeholder="0.00"
+                              value={goalForm.target}
+                              onChange={(e) => handleInputChange("target", e.target.value)}
+                              className={cn(formErrors.target && "border-destructive")}
+                              min="0"
+                              step="0.01"
+                            />
+                            {formErrors.target && (
+                              <p className="text-xs text-destructive">{formErrors.target}</p>
+                            )}
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor="goal-icon">Icon</Label>
+                            <Select
+                              value={goalForm.iconKey}
+                              onValueChange={(value) => handleInputChange("iconKey", value as GoalIconKey)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Object.entries(GOAL_ICONS).map(([key, { label, icon }]) => (
+                                  <SelectItem key={key} value={key}>
+                                    <div className="flex items-center gap-2">
+                                      {icon}
+                                      {label}
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        
+                        <DialogFooter>
+                          <Button type="button" variant="outline" onClick={() => setIsGoalModalOpen(false)}>
+                            Cancel
+                          </Button>
+                          <Button type="submit" className="bg-primary hover:bg-primary/90">
+                            Create Goal
+                          </Button>
+                        </DialogFooter>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+                <CardDescription>
+                  Track your savings goals and progress
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {savingsData.goalProgress.length > 0 ? (
+                  <div className="space-y-4">
+                    {savingsData.goalProgress.map((goal) => (
+                      <div key={goal.id} className="relative p-4 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors">
+                        {/* Delete Button */}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="absolute top-2 right-2 h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Goal</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete "{goal.title}"? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => handleDeleteGoal(goal.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-primary">{GOAL_ICONS[goal.iconKey as GoalIconKey].icon}</span>
+                              <span className="font-medium">{goal.title}</span>
+                              {goal.progress >= 100 ? (
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                              ) : goal.isOnTrack ? (
+                                <Clock className="h-4 w-4 text-blue-500" />
+                              ) : (
+                                <AlertCircle className="h-4 w-4 text-orange-500" />
+                              )}
+                            </div>
+                            <Badge variant={goal.progress >= 100 ? "default" : "secondary"}>
+                              {goal.progress >= 100 ? "Complete" : `${goal.progress.toFixed(1)}%`}
+                            </Badge>
+                          </div>
+                          
+                          <Progress value={Math.min(goal.progress, 100)} className="h-2" />
+                          
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>£{goal.saved.toFixed(2)} / £{goal.target.toFixed(2)}</span>
+                            {goal.progress < 100 && (
+                              <span>
+                                {goal.monthsToComplete > 0 
+                                  ? `${goal.monthsToComplete.toFixed(1)} months left`
+                                  : "Set savings rate"
+                                }
+                              </span>
+                            )}
+                          </div>
+                          
+                          {goal.progress < 100 && goal.remaining > 0 && (
+                            <div className="text-xs text-muted-foreground">
+                              <span>Remaining: £{goal.remaining.toFixed(2)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No savings goals set</p>
+                    <p className="text-sm">Create your first goal to start tracking progress</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.section>
+        </div>
+
+        {/* Insights & Recommendations */}
+        <motion.section variants={itemVariants}>
+          <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5" />
+                Smart Insights
+              </CardTitle>
+              <CardDescription>
+                Personalized recommendations based on your data
+              </CardDescription>
+            </CardHeader>
+                         <CardContent className="space-y-4">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 {/* Savings Rate Insight */}
+                 <div className="p-4 rounded-lg bg-background/80 border">
+                   <div className="flex items-center gap-2 mb-2">
+                     <TrendingUp className="h-4 w-4 text-primary" />
+                     <span className="font-medium">Savings Rate</span>
+                   </div>
+                   {income > 0 ? (
+                     <>
+                       <p className="text-sm text-muted-foreground mb-2">
+                         You're saving {savingsData.savingsRate.toFixed(1)}% of your income
+                       </p>
+                       {savingsData.savingsRate < 20 ? (
+                         <p className="text-xs text-orange-600">
+                           💡 Consider increasing to 20% for better financial security
+                         </p>
+                       ) : (
+                         <p className="text-xs text-green-600">
+                           ✅ Excellent savings rate! Keep it up
+                         </p>
+                       )}
+                     </>
+                   ) : (
+                     <>
+                       <p className="text-sm text-muted-foreground mb-2">
+                         Set your income to start tracking savings rate
+                       </p>
+                       <p className="text-xs text-blue-600">
+                         💡 Aim for 20% of your income in savings
+                       </p>
+                     </>
+                   )}
+                 </div>
+
+                 {/* Goal Progress Insight */}
+                 <div className="p-4 rounded-lg bg-background/80 border">
+                   <div className="flex items-center gap-2 mb-2">
+                     <Target className="h-4 w-4 text-primary" />
+                     <span className="font-medium">Goal Progress</span>
+                   </div>
+                   {goals.length > 0 ? (
+                     <>
+                       <p className="text-sm text-muted-foreground mb-2">
+                         {savingsData.goalProgress.filter(g => g.progress >= 100).length} of {goals.length} goals completed
+                       </p>
+                       {savingsData.goalProgress.some(g => !g.isOnTrack && g.progress < 100) ? (
+                         <p className="text-xs text-orange-600">
+                           ⚠️ Some goals may need adjustment to stay on track
+                         </p>
+                       ) : (
+                         <p className="text-xs text-green-600">
+                           ✅ All goals are on track to completion
+                         </p>
+                       )}
+                     </>
+                   ) : (
+                     <>
+                       <p className="text-sm text-muted-foreground mb-2">
+                         No savings goals set yet
+                       </p>
+                       <p className="text-xs text-blue-600">
+                         💡 Create goals to track your progress
+                       </p>
+                     </>
+                   )}
+                 </div>
+
+                 {/* Trend Insight */}
+                 <div className="p-4 rounded-lg bg-background/80 border">
+                   <div className="flex items-center gap-2 mb-2">
+                     <BarChart3 className="h-4 w-4 text-primary" />
+                     <span className="font-medium">Savings Trend</span>
+                   </div>
+                   {budgets.length >= 6 ? (
+                     <>
+                       <p className="text-sm text-muted-foreground mb-2">
+                         {savingsData.trendPercentage > 0 ? "Increasing" : savingsData.trendPercentage < 0 ? "Decreasing" : "Stable"} savings rate
+                       </p>
+                       {savingsData.trendPercentage < 0 ? (
+                         <p className="text-xs text-orange-600">
+                           📉 Consider reviewing your budget to increase savings
+                         </p>
+                       ) : (
+                         <p className="text-xs text-green-600">
+                           📈 Great momentum! Your savings are growing
+                         </p>
+                       )}
+                     </>
+                   ) : (
+                     <>
+                       <p className="text-sm text-muted-foreground mb-2">
+                         Need 6+ months of data for trend analysis
+                       </p>
+                       <p className="text-xs text-blue-600">
+                         💡 Create more budgets to see your savings trend
+                       </p>
+                     </>
+                   )}
+                 </div>
+
+                 {/* Projection Insight */}
+                 <div className="p-4 rounded-lg bg-background/80 border">
+                   <div className="flex items-center gap-2 mb-2">
+                     <Calculator className="h-4 w-4 text-primary" />
+                     <span className="font-medium">Annual Projection</span>
+                   </div>
+                   {budgets.length > 0 && savingsData.monthlySavings > 0 ? (
+                     <>
+                       <p className="text-sm text-muted-foreground mb-2">
+                         On track to save £{savingsData.oneYearProjection.toFixed(2)} this year
+                       </p>
+                       <p className="text-xs text-blue-600">
+                         💡 This could fund {Math.floor(savingsData.oneYearProjection / 1000)} major goals
+                       </p>
+                     </>
+                   ) : (
+                     <>
+                       <p className="text-sm text-muted-foreground mb-2">
+                         No projection data available
+                       </p>
+                       <p className="text-xs text-blue-600">
+                         💡 Create budgets to see future projections
+                       </p>
+                     </>
+                   )}
+                 </div>
+               </div>
+             </CardContent>
+          </Card>
+        </motion.section>
+      </div>
+    </motion.div>
+  );
+}
