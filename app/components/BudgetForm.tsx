@@ -188,13 +188,34 @@ export default function BudgetForm() {
         // Automatically allocate goal contributions
         const activeGoals = goals.filter(g => g.isActive);
         activeGoals.forEach(goal => {
+          // Set the goal allocation to the monthly contribution
           initialAmounts[goal.title] = goal.monthlyContribution;
         });
+        
+        // Log for debugging
+        console.log('Active goals:', activeGoals);
+        console.log('Initial amounts after goal allocation:', initialAmounts);
       }
    }
 
    setAmounts(initialAmounts);
   }, [selectedMonth, currentBudget, previousBudget, debts, selectedBudget, budgets, isEditing, goals]);
+
+  // Ensure goal allocations are properly set when goals change
+  useEffect(() => {
+    if (selectedMonth && !currentBudget && !selectedBudget) {
+      const activeGoals = goals.filter(g => g.isActive);
+      if (activeGoals.length > 0) {
+        setAmounts(prev => {
+          const updated = { ...prev };
+          activeGoals.forEach(goal => {
+            updated[goal.title] = goal.monthlyContribution;
+          });
+          return updated;
+        });
+      }
+    }
+  }, [goals, selectedMonth, currentBudget, selectedBudget]);
 
   // Derived data
   const allocationsArray = Object.entries(amounts).map(([category, amount]) => ({
@@ -634,6 +655,38 @@ export default function BudgetForm() {
         </Card>
       </motion.div>
 
+      {/* Goal Allocations Breakdown */}
+      {goals.filter(g => g.isActive).length > 0 && (
+        <motion.div variants={itemVariants} className="mb-8">
+          <Card className="border-green-200 bg-green-50/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-green-700">
+                <Target className="h-5 w-5" />
+                Goal Allocations
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {goals.filter(g => g.isActive).map(goal => (
+                <div key={goal.id} className="flex justify-between items-center p-2 bg-white/50 rounded">
+                  <div className="flex items-center gap-2">
+                    <Target className="h-4 w-4 text-green-600" />
+                    <span className="font-medium">{goal.title}</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-semibold text-green-700">
+                      £{(amounts[goal.title] || 0).toFixed(2)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Target: £{goal.target.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
       {/* Budget Categories */}
       <motion.div variants={itemVariants}>
         <Tabs defaultValue="categories" className="space-y-6">
@@ -658,12 +711,22 @@ export default function BudgetForm() {
           const userCategories = allCategories.filter((cat) => !debts.some((d) => d.name === cat));
 
           return (
-                   <Card key={group.title}>
+                   <Card key={group.title} className={cn(
+                     group.title === "Goals" && "border-green-200 bg-green-50/30"
+                   )}>
                      <CardHeader className="pb-4">
                        <div className="flex justify-between items-center">
                          <div className="flex items-center gap-2">
                            {CATEGORY_ICONS[group.title] || <Calculator className="h-4 w-4" />}
-                           <CardTitle className="text-lg">{group.title}</CardTitle>
+                           <CardTitle className={cn(
+                             "text-lg",
+                             group.title === "Goals" && "text-green-700"
+                           )}>{group.title}</CardTitle>
+                           {group.title === "Goals" && (
+                             <Badge variant="outline" className="text-xs bg-green-100 text-green-700 border-green-300">
+                               Auto-allocated
+                             </Badge>
+                           )}
                          </div>
                          <Button
                            onClick={() => openAddModal(group.title)}
