@@ -77,6 +77,7 @@ interface GoalFormData {
   title: string;
   target: string;
   iconKey: GoalIconKey;
+  targetMonth: string;
 }
 
 export default function SavingsDashboard() {
@@ -95,36 +96,56 @@ export default function SavingsDashboard() {
     title: "",
     target: "",
     iconKey: "piggy",
+    targetMonth: "",
   });
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
-  const [formErrors, setFormErrors] = useState<{ title?: string; target?: string }>({});
+  const [formErrors, setFormErrors] = useState<{ title?: string; target?: string; targetMonth?: string }>({});
 
   // Calculate comprehensive savings data
   const savingsData = useMemo(() => {
-    const savingsCategories = ["Emergency Fund", "Investments", "Pension"];
+    // Get all savings-related categories from budgets
+    const allSavingsCategories = new Set<string>();
+    budgets.forEach(budget => {
+      budget.allocations.forEach(allocation => {
+        if (allocation.category.toLowerCase().includes('savings') || 
+            allocation.category.toLowerCase().includes('emergency') ||
+            allocation.category.toLowerCase().includes('investment') ||
+            allocation.category.toLowerCase().includes('pension') ||
+            allocation.category.toLowerCase().includes('goal')) {
+          allSavingsCategories.add(allocation.category);
+        }
+      });
+    });
+    
+    const savingsCategories = Array.from(allSavingsCategories);
     const totalSaved = getTotalSaved();
     
-    // Calculate monthly average savings
+    // Calculate monthly average savings from actual budget data
     const monthlySavings = budgets.length > 0 
       ? totalSaved / budgets.length 
       : 0;
     
-    // Calculate savings rate
-    const savingsRate = income > 0 ? (totalSaved / income) * 100 : 0;
+    // Calculate savings rate based on total income across all budgets
+    const totalIncome = budgets.reduce((sum, budget) => sum + budget.income, 0);
+    const savingsRate = totalIncome > 0 ? (totalSaved / totalIncome) * 100 : 0;
     
-    // Calculate projections
+    // Calculate projections based on current monthly savings
     const monthlyProjection = monthlySavings * 12; // Annual projection
     const sixMonthProjection = monthlySavings * 6;
     const oneYearProjection = monthlySavings * 12;
     
-    // Calculate category breakdown
+    // Calculate category breakdown from actual budget data
     const categoryBreakdown = savingsCategories.map(category => {
       const amount = budgets.reduce((sum, budget) => {
         const allocation = budget.allocations.find(a => a.category === category);
         return sum + (allocation?.amount || 0);
       }, 0);
-      return { category, amount, percentage: totalSaved > 0 ? (amount / totalSaved) * 100 : 0 };
-    });
+      return { 
+        category, 
+        amount, 
+        percentage: totalSaved > 0 ? (amount / totalSaved) * 100 : 0 
+      };
+    }).filter(item => item.amount > 0); // Only show categories with actual savings
     
     // Calculate trend (last 3 months vs previous 3 months)
     const recentBudgets = budgets.slice(-3);
@@ -148,12 +169,15 @@ export default function SavingsDashboard() {
       ? ((recentSavings - previousSavings) / previousSavings) * 100 
       : 0;
     
-    // Calculate goal progress
+    // Calculate goal progress with actual saved amounts
     const goalProgress = goals.map(goal => {
       const saved = getSavedAmountForGoal(goal.title);
       const progress = goal.target > 0 ? (saved / goal.target) * 100 : 0;
       const remaining = goal.target - saved;
-      const monthsToComplete = monthlySavings > 0 ? remaining / monthlySavings : 0;
+      const monthsToComplete = goal.monthlyContribution > 0 ? remaining / goal.monthlyContribution : 0;
+      
+      // Check if goal is completed
+      const isCompleted = progress >= 100;
       
       return {
         ...goal,
@@ -161,11 +185,12 @@ export default function SavingsDashboard() {
         progress,
         remaining,
         monthsToComplete,
-        isOnTrack: monthlySavings > 0 && monthsToComplete <= 12
+        isOnTrack: goal.monthlyContribution > 0 && monthsToComplete <= 12,
+        isCompleted
       };
     });
 
-    // Prepare chart data
+    // Prepare chart data from actual budget data
     const savingsOverTime = budgets.slice(-6).map(budget => {
       const savings = budget.allocations
         .filter(alloc => savingsCategories.includes(alloc.category))
@@ -222,7 +247,7 @@ export default function SavingsDashboard() {
 
   // Goal form handlers
   const validateGoalForm = (): boolean => {
-    const errors: { title?: string; target?: string } = {};
+    const errors: { title?: string; target?: string; targetMonth?: string } = {};
     
     if (!goalForm.title.trim()) {
       errors.title = "Goal title is required";
@@ -233,6 +258,16 @@ export default function SavingsDashboard() {
     const targetNum = parseFloat(goalForm.target);
     if (!goalForm.target || isNaN(targetNum) || targetNum <= 0) {
       errors.target = "Valid target amount is required";
+    }
+    
+    if (!goalForm.targetMonth) {
+      errors.targetMonth = "Target month is required";
+    } else {
+      const targetDate = new Date(goalForm.targetMonth + "-01");
+      const currentDate = new Date();
+      if (targetDate <= currentDate) {
+        errors.targetMonth = "Target month must be in the future";
+      }
     }
     
     setFormErrors(errors);
@@ -248,11 +283,11 @@ export default function SavingsDashboard() {
         title: goalForm.title.trim(),
         target: parseFloat(goalForm.target),
         iconKey: goalForm.iconKey,
-        saved: 0, // Start with 0 saved amount
+        targetMonth: goalForm.targetMonth,
       });
       
       // Reset form
-      setGoalForm({ title: "", target: "", iconKey: "piggy" });
+      setGoalForm({ title: "", target: "", iconKey: "piggy", targetMonth: "" });
       setFormErrors({});
       setIsGoalModalOpen(false);
     } catch (error) {
@@ -342,7 +377,14 @@ export default function SavingsDashboard() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Total Saved</p>
-                    <p className="text-2xl font-bold">£{savingsData.totalSaved.toFixed(2)}</p>
+                    <p className="text-2xl font-bold">
+                      £{savingsData.totalSaved > 0 ? savingsData.totalSaved.toFixed(2) : '0.00'}
+                    </p>
+                    {budgets.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        From {budgets.length} budget{budgets.length !== 1 ? 's' : ''}
+                      </p>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -356,7 +398,14 @@ export default function SavingsDashboard() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Monthly Average</p>
-                    <p className="text-2xl font-bold text-green-600">£{savingsData.monthlySavings.toFixed(2)}</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      £{savingsData.monthlySavings > 0 ? savingsData.monthlySavings.toFixed(2) : '0.00'}
+                    </p>
+                    {budgets.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {savingsData.monthlySavings > 0 ? 'Based on your budget history' : 'No savings data yet'}
+                      </p>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -370,7 +419,14 @@ export default function SavingsDashboard() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Savings Rate</p>
-                    <p className="text-2xl font-bold text-blue-600">{savingsData.savingsRate.toFixed(1)}%</p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {savingsData.savingsRate > 0 ? savingsData.savingsRate.toFixed(1) : '0.0'}%
+                    </p>
+                    {budgets.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {savingsData.savingsRate > 0 ? 'Of total income' : 'No savings yet'}
+                      </p>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -624,31 +680,39 @@ export default function SavingsDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-green-600" />
-                      <span className="font-medium">6 Months</span>
+                {savingsData.monthlySavings > 0 ? (
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-green-600" />
+                        <span className="font-medium">6 Months</span>
+                      </div>
+                      <span className="font-bold text-green-600">£{savingsData.sixMonthProjection.toFixed(2)}</span>
                     </div>
-                    <span className="font-bold text-green-600">£{savingsData.sixMonthProjection.toFixed(2)}</span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-blue-600" />
-                      <span className="font-medium">1 Year</span>
+                    
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-blue-600" />
+                        <span className="font-medium">1 Year</span>
+                      </div>
+                      <span className="font-bold text-blue-600">£{savingsData.oneYearProjection.toFixed(2)}</span>
                     </div>
-                    <span className="font-bold text-blue-600">£{savingsData.oneYearProjection.toFixed(2)}</span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-purple-600" />
-                      <span className="font-medium">Annual Rate</span>
+                    
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-purple-600" />
+                        <span className="font-medium">Annual Rate</span>
+                      </div>
+                      <span className="font-bold text-purple-600">{savingsData.savingsRate.toFixed(1)}%</span>
                     </div>
-                    <span className="font-bold text-purple-600">{savingsData.savingsRate.toFixed(1)}%</span>
                   </div>
-                </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Calculator className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-sm">No projections available</p>
+                    <p className="text-xs">Create budgets with savings to see future projections</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -669,19 +733,27 @@ export default function SavingsDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {savingsData.categoryBreakdown.map((category) => (
-                  <div key={category.category} className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium">{category.category}</span>
-                      <span className="font-semibold">£{category.amount.toFixed(2)}</span>
+                {savingsData.categoryBreakdown.length > 0 ? (
+                  savingsData.categoryBreakdown.map((category) => (
+                    <div key={category.category} className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium">{category.category}</span>
+                        <span className="font-semibold">£{category.amount.toFixed(2)}</span>
+                      </div>
+                      <Progress value={category.percentage} className="h-2" />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>{category.percentage.toFixed(1)}% of total</span>
+                        <span>{category.amount > 0 ? "£" + category.amount.toFixed(2) : "£0.00"}</span>
+                      </div>
                     </div>
-                    <Progress value={category.percentage} className="h-2" />
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>{category.percentage.toFixed(1)}% of total</span>
-                      <span>{category.amount > 0 ? "£" + category.amount.toFixed(2) : "£0.00"}</span>
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <PieChart className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-sm">No savings categories found</p>
+                    <p className="text-xs">Add savings allocations to your budgets to see breakdown</p>
                   </div>
-                ))}
+                )}
               </CardContent>
             </Card>
           </motion.section>
@@ -765,6 +837,21 @@ export default function SavingsDashboard() {
                           </div>
                         </div>
                         
+                        <div className="space-y-2">
+                          <Label htmlFor="goal-target-month">Target Month</Label>
+                          <Input
+                            id="goal-target-month"
+                            type="month"
+                            value={goalForm.targetMonth}
+                            onChange={(e) => handleInputChange("targetMonth", e.target.value)}
+                            className={cn(formErrors.targetMonth && "border-destructive")}
+                            min={new Date().toISOString().slice(0, 7)}
+                          />
+                          {formErrors.targetMonth && (
+                            <p className="text-xs text-destructive">{formErrors.targetMonth}</p>
+                          )}
+                        </div>
+                        
                         <DialogFooter>
                           <Button type="button" variant="outline" onClick={() => setIsGoalModalOpen(false)}>
                             Cancel
@@ -821,7 +908,7 @@ export default function SavingsDashboard() {
                             <div className="flex items-center gap-2">
                               <span className="text-primary">{GOAL_ICONS[goal.iconKey as GoalIconKey].icon}</span>
                               <span className="font-medium">{goal.title}</span>
-                              {goal.progress >= 100 ? (
+                              {goal.isCompleted ? (
                                 <CheckCircle className="h-4 w-4 text-green-500" />
                               ) : goal.isOnTrack ? (
                                 <Clock className="h-4 w-4 text-blue-500" />
@@ -829,8 +916,8 @@ export default function SavingsDashboard() {
                                 <AlertCircle className="h-4 w-4 text-orange-500" />
                               )}
                             </div>
-                            <Badge variant={goal.progress >= 100 ? "default" : "secondary"}>
-                              {goal.progress >= 100 ? "Complete" : `${goal.progress.toFixed(1)}%`}
+                            <Badge variant={goal.isCompleted ? "default" : "secondary"}>
+                              {goal.isCompleted ? "Complete" : `${goal.progress.toFixed(1)}%`}
                             </Badge>
                           </div>
                           
@@ -846,6 +933,23 @@ export default function SavingsDashboard() {
                                 }
                               </span>
                             )}
+                          </div>
+                          
+                          {/* Goal Details */}
+                          <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                            <div>
+                              <span className="font-medium">Target Month:</span>
+                              <br />
+                              <span>{new Date(goal.targetMonth + "-01").toLocaleDateString('en-GB', { 
+                                year: 'numeric', 
+                                month: 'long' 
+                              })}</span>
+                            </div>
+                            <div>
+                              <span className="font-medium">Monthly Contribution:</span>
+                              <br />
+                              <span>£{goal.monthlyContribution?.toFixed(2) || '0.00'}</span>
+                            </div>
                           </div>
                           
                           {goal.progress < 100 && goal.remaining > 0 && (

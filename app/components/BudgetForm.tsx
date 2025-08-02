@@ -93,8 +93,10 @@ export default function BudgetForm() {
   const getBudgetRemaining = useFirebaseStore((s) => s.getBudgetRemaining);
   const getCustomCategories = useFirebaseStore((s) => s.getCustomCategories);
   const addCustomCategory = useFirebaseStore((s) => s.addCustomCategory);
+  const allocateGoalContributions = useFirebaseStore((s) => s.allocateGoalContributions);
   const debts = useFirebaseStore((s) => s.debts);
   const budgets = useFirebaseStore((s) => s.budgets);
+  const goals = useFirebaseStore((s) => s.goals);
   const { user } = useAuth();
 
   // State
@@ -106,6 +108,7 @@ export default function BudgetForm() {
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [showRemaining, setShowRemaining] = useState(true);
   const [availableMonthsList, setAvailableMonthsList] = useState<string[]>([]);
+  const [editableGoals, setEditableGoals] = useState<Set<string>>(new Set());
 
   // Get available months for budget selection
   const availableMonths = useMemo(() => {
@@ -148,44 +151,50 @@ export default function BudgetForm() {
   }, [budgets, selectedMonth]);
 
      // Initialize amounts when month changes
-  useEffect(() => {
-     if (!selectedMonth) return;
+    useEffect(() => {
+    if (!selectedMonth) return;
 
-     let initialAmounts: { [cat: string]: number } = {};
+    let initialAmounts: { [cat: string]: number } = {};
 
-     // If a specific budget is selected from dropdown, load its allocations first
-     if (selectedBudget) {
-       const selectedBudgetData = budgets.find(b => b.id === selectedBudget);
-       if (selectedBudgetData) {
-         selectedBudgetData.allocations.forEach(({ category, amount }) => {
-           initialAmounts[category] = amount;
-         });
-       }
-     } else {
-       // If there's an existing budget for the selected month, load it
-       if (currentBudget) {
-         currentBudget.allocations.forEach(({ category, amount }) => {
-           initialAmounts[category] = amount;
-         });
-       } else {
-         // Pre-fill with debt amounts
-         debts.forEach(debt => {
-           initialAmounts[debt.name] = debt.monthlyRepayment;
-         });
+    // If a specific budget is selected from dropdown, load its allocations first
+    if (selectedBudget) {
+      const selectedBudgetData = budgets.find(b => b.id === selectedBudget);
+      if (selectedBudgetData) {
+        selectedBudgetData.allocations.forEach(({ category, amount }) => {
+          initialAmounts[category] = amount;
+        });
+      }
+    } else {
+      // If there's an existing budget for the selected month, load it
+      if (currentBudget) {
+        currentBudget.allocations.forEach(({ category, amount }) => {
+          initialAmounts[category] = amount;
+        });
+      } else {
+        // Pre-fill with debt amounts
+        debts.forEach(debt => {
+          initialAmounts[debt.name] = debt.monthlyRepayment;
+        });
 
-         // Pre-fill with previous month's budget if available
-         if (previousBudget) {
-           previousBudget.allocations.forEach(({ category, amount }) => {
-             if (!debts.some(d => d.name === category)) {
-               initialAmounts[category] = amount;
-             }
-           });
-         }
-       }
-    }
+        // Pre-fill with previous month's budget if available
+        if (previousBudget) {
+          previousBudget.allocations.forEach(({ category, amount }) => {
+            if (!debts.some(d => d.name === category)) {
+              initialAmounts[category] = amount;
+            }
+          });
+        }
 
-    setAmounts(initialAmounts);
-   }, [selectedMonth, currentBudget, previousBudget, debts, selectedBudget, budgets, isEditing]);
+        // Automatically allocate goal contributions
+        const activeGoals = goals.filter(g => g.isActive);
+        activeGoals.forEach(goal => {
+          initialAmounts[goal.title] = goal.monthlyContribution;
+        });
+      }
+   }
+
+   setAmounts(initialAmounts);
+  }, [selectedMonth, currentBudget, previousBudget, debts, selectedBudget, budgets, isEditing, goals]);
 
   // Derived data
   const allocationsArray = Object.entries(amounts).map(([category, amount]) => ({
@@ -280,16 +289,27 @@ export default function BudgetForm() {
           description: "Budget updated successfully!",
         });
       } else {
-        // Create new budget
-        await addBudget({
+        // Create new budget with goal allocations
+        const budgetData = {
           month: selectedMonth,
           income,
           allocations,
-        });
-        toast({
-          title: "Success",
-          description: "Budget created successfully!",
-        });
+        };
+        
+        // Allocate goal contributions if there are active goals
+        if (goals.filter(g => g.isActive).length > 0) {
+          await allocateGoalContributions(budgetData);
+          toast({
+            title: "Success",
+            description: "Budget created successfully with goal allocations!",
+          });
+        } else {
+          await addBudget(budgetData);
+          toast({
+            title: "Success",
+            description: "Budget created successfully!",
+          });
+        }
       }
 
       setIsEditing(false);
@@ -350,6 +370,18 @@ export default function BudgetForm() {
         });
       }
     }
+  };
+
+  const toggleGoalEdit = (goalTitle: string) => {
+    setEditableGoals(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(goalTitle)) {
+        newSet.delete(goalTitle);
+      } else {
+        newSet.add(goalTitle);
+      }
+      return newSet;
+    });
   };
 
   return (
@@ -614,7 +646,14 @@ export default function BudgetForm() {
              <div className="space-y-6">
         {budgetTemplate.map((group) => {
           const custom = getCustomCategories(group.title);
-          const allCategories = [...group.categories, ...custom];
+          let allCategories = [...group.categories, ...custom];
+          
+          // Dynamically populate Goals section with user's active goals
+          if (group.title === "Goals") {
+            const activeGoals = goals.filter(g => g.isActive).map(g => g.title);
+            allCategories = [...activeGoals, ...custom];
+          }
+          
           const debtsInGroup = debts.filter((d) => allCategories.includes(d.name));
           const userCategories = allCategories.filter((cat) => !debts.some((d) => d.name === cat));
 
@@ -638,29 +677,72 @@ export default function BudgetForm() {
                      </CardHeader>
                      <CardContent className="space-y-4">
                        <div className="grid grid-cols-2 gap-4">
-                {userCategories.map((cat) => (
-                           <div key={cat} className="space-y-2">
-                             <Label className="text-sm font-medium">
-                      {cat}
-                             </Label>
-                             <div className="relative">
-                               <Input
-                        type="number"
-                        value={amounts[cat] ?? ""}
-                        onChange={(e) => handleAmountChange(cat, e.target.value)}
-                                 className={cn(
-                                   "pr-8",
-                                   !isEditing && currentBudget && "opacity-70 cursor-not-allowed"
+                {userCategories.map((cat) => {
+                  // Check if this is a goal category
+                  const isGoalCategory = group.title === "Goals";
+                  const goal = goals.find(g => g.title === cat);
+                  const isEditable = editableGoals.has(cat);
+                  
+                  return (
+                    <div key={cat} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium">
+                          {cat}
+                        </Label>
+                        {isGoalCategory && goal && (
+                          <div className="flex items-center gap-1">
+                            <Badge variant="outline" className="text-xs">
+                              Goal
+                            </Badge>
+                            {!isEditable ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleGoalEdit(cat)}
+                                className="h-6 px-2 text-xs"
+                              >
+                                Edit
+                              </Button>
+                            ) : (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleGoalEdit(cat)}
+                                className="h-6 px-2 text-xs text-green-600"
+                              >
+                                Save
+                              </Button>
+                            )}
+                          </div>
                         )}
-                        placeholder="0.00"
-                                 disabled={!isEditing && currentBudget}
-                               />
-                               <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                                 £
-                               </span>
+                      </div>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          value={amounts[cat] ?? ""}
+                          onChange={(e) => handleAmountChange(cat, e.target.value)}
+                          className={cn(
+                            "pr-8",
+                            !isEditing && currentBudget && "opacity-70 cursor-not-allowed",
+                            isGoalCategory && !isEditable && "bg-green-50 border-green-200"
+                          )}
+                          placeholder="0.00"
+                          disabled={(!isEditing && currentBudget) || (isGoalCategory && !isEditable)}
+                        />
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                          £
+                        </span>
+                      </div>
+                      {isGoalCategory && goal && (
+                        <div className="text-xs text-muted-foreground">
+                          Target: £{goal.target.toFixed(2)} | Monthly: £{goal.monthlyContribution.toFixed(2)}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 {debtsInGroup.map((debt) => (
                            <div key={debt.id} className="space-y-2">
@@ -703,7 +785,7 @@ export default function BudgetForm() {
                </CardHeader>
                <CardContent className="space-y-6">
                  {/* Summary Stats */}
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                    <div className="bg-primary/5 p-4 rounded-lg">
                      <div className="text-sm text-muted-foreground">Monthly Income</div>
                      <div className="text-2xl font-bold text-primary">£{income.toFixed(2)}</div>
@@ -711,6 +793,12 @@ export default function BudgetForm() {
                    <div className="bg-blue-50 p-4 rounded-lg">
                      <div className="text-sm text-muted-foreground">Total Allocated</div>
                      <div className="text-2xl font-bold text-blue-600">£{totalAllocated.toFixed(2)}</div>
+                   </div>
+                   <div className="bg-green-50 p-4 rounded-lg">
+                     <div className="text-sm text-muted-foreground">Goal Allocations</div>
+                     <div className="text-2xl font-bold text-green-600">
+                       £{goals.filter(g => g.isActive).reduce((sum, goal) => sum + (amounts[goal.title] || 0), 0).toFixed(2)}
+                     </div>
                    </div>
                    <div className={`p-4 rounded-lg ${remaining >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
                      <div className="text-sm text-muted-foreground">Remaining</div>
@@ -768,18 +856,24 @@ export default function BudgetForm() {
                    .map(([category, amount]) => {
                      const percentage = income > 0 ? (amount / income) * 100 : 0;
                      const isDebt = debts.some(d => d.name === category);
+                     const isGoal = goals.some(g => g.title === category && g.isActive);
                      
                      return (
                        <div key={category} className="space-y-2">
                          <div className="flex justify-between items-center">
                            <div className="flex items-center gap-2">
                              {isDebt && <CreditCard className="h-4 w-4 text-destructive" />}
+                             {isGoal && <Target className="h-4 w-4 text-green-600" />}
                              <span className="font-medium">{category}</span>
                              {isDebt && <Badge variant="destructive" className="text-xs">Debt</Badge>}
+                             {isGoal && <Badge variant="outline" className="text-xs text-green-600">Goal</Badge>}
                            </div>
                            <span className="font-semibold">£{amount.toFixed(2)}</span>
                          </div>
-                         <Progress value={percentage} className="h-2" />
+                         <Progress 
+                           value={percentage} 
+                           className={cn("h-2", isGoal && "bg-green-100")}
+                         />
                          <div className="flex justify-between text-xs text-muted-foreground">
                            <span>{percentage.toFixed(1)}% of income</span>
                            <span>£{amount.toFixed(2)}</span>

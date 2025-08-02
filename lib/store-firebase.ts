@@ -44,6 +44,10 @@ export interface Goal {
   target: number;
   saved: number;
   iconKey: string;
+  targetMonth: string; // Format: "YYYY-MM"
+  targetYear: number;
+  monthlyContribution: number;
+  isActive: boolean;
   createdAt?: any;
   updatedAt?: any;
 }
@@ -88,7 +92,7 @@ interface FirebaseStore {
   deleteDebt: (id: string) => Promise<void>;
   
   // Goal actions
-  addGoal: (goal: Omit<Goal, 'id' | 'userId'>) => Promise<void>;
+  addGoal: (goal: Omit<Goal, 'id' | 'userId' | 'saved' | 'targetYear' | 'monthlyContribution' | 'isActive'>) => Promise<void>;
   updateGoal: (id: string, goal: Partial<Goal>) => Promise<void>;
   deleteGoal: (id: string) => Promise<void>;
   
@@ -101,6 +105,7 @@ interface FirebaseStore {
   getCustomCategories: (section: string) => string[];
   addCustomCategory: (section: string, name: string) => void;
   getSavedAmountForGoal: (goalTitle: string) => number;
+  allocateGoalContributions: (budget: Omit<Budget, 'id' | 'userId'>) => Promise<void>;
   
   // Initialize Firebase listeners
   initializeFirebaseListeners: () => void;
@@ -197,9 +202,21 @@ export const useFirebaseStore = create<FirebaseStore>()(
         const { user } = get();
         if (!user) throw new Error("User not authenticated");
         
+        // Calculate monthly contribution based on target and months remaining
+        const targetDate = new Date(goal.targetMonth + "-01");
+        const currentDate = new Date();
+        const monthsRemaining = Math.max(1, (targetDate.getFullYear() - currentDate.getFullYear()) * 12 + 
+          (targetDate.getMonth() - currentDate.getMonth()));
+        
+        const monthlyContribution = goal.target / monthsRemaining;
+        
         const goalData = {
           ...goal,
-          userId: user.uid
+          userId: user.uid,
+          saved: 0,
+          targetYear: targetDate.getFullYear(),
+          monthlyContribution,
+          isActive: true
         };
         
         await firestoreUtils.create(COLLECTIONS.GOALS, goalData);
@@ -218,7 +235,12 @@ export const useFirebaseStore = create<FirebaseStore>()(
         const { budgets } = get();
         return budgets.reduce((total, budget) => {
           const savingsAllocations = budget.allocations.filter(
-            allocation => allocation.category.toLowerCase().includes('savings')
+            allocation => 
+              allocation.category.toLowerCase().includes('savings') ||
+              allocation.category.toLowerCase().includes('emergency') ||
+              allocation.category.toLowerCase().includes('investment') ||
+              allocation.category.toLowerCase().includes('pension') ||
+              allocation.category.toLowerCase().includes('goal')
           );
           return total + savingsAllocations.reduce((sum, alloc) => sum + alloc.amount, 0);
         }, 0);
@@ -294,10 +316,52 @@ export const useFirebaseStore = create<FirebaseStore>()(
         const { budgets } = get();
         return budgets.reduce((total, budget) => {
           const goalAllocations = budget.allocations.filter(
-            allocation => allocation.category.toLowerCase().includes(goalTitle.toLowerCase())
+            allocation => {
+              const categoryLower = allocation.category.toLowerCase();
+              const goalTitleLower = goalTitle.toLowerCase();
+              return categoryLower.includes(goalTitleLower) || 
+                     goalTitleLower.includes(categoryLower) ||
+                     (goalTitleLower.includes('emergency') && categoryLower.includes('emergency')) ||
+                     (goalTitleLower.includes('vacation') && categoryLower.includes('vacation')) ||
+                     (goalTitleLower.includes('car') && categoryLower.includes('car')) ||
+                     (goalTitleLower.includes('home') && categoryLower.includes('home'));
+            }
           );
           return total + goalAllocations.reduce((sum, alloc) => sum + alloc.amount, 0);
         }, 0);
+      },
+
+      allocateGoalContributions: async (budget) => {
+        const { user, goals } = get();
+        if (!user) throw new Error("User not authenticated");
+        
+        const activeGoals = goals.filter(goal => goal.isActive);
+        let updatedAllocations = [...budget.allocations];
+        
+        // Add goal contributions to allocations
+        activeGoals.forEach(goal => {
+          const existingAllocation = updatedAllocations.find(alloc => alloc.category === goal.title);
+          if (existingAllocation) {
+            existingAllocation.amount += goal.monthlyContribution;
+          } else {
+            updatedAllocations.push({
+              category: goal.title,
+              amount: goal.monthlyContribution
+            });
+          }
+        });
+        
+        // Update the budget with new allocations
+        const updatedBudget = {
+          ...budget,
+          allocations: updatedAllocations
+        };
+        
+        // Save to Firebase
+        await firestoreUtils.create(COLLECTIONS.BUDGETS, {
+          ...updatedBudget,
+          userId: user.uid
+        });
       },
 
       // Firebase listeners

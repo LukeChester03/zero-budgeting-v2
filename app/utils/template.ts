@@ -9,6 +9,10 @@ export const budgetTemplate: BudgetCategoryGroup[] = [
     categories: ["Emergency Fund", "Investments", "Pension"],
   },
   {
+    title: "Goals",
+    categories: [], // Will be populated dynamically from user's goals
+  },
+  {
     title: "Bills & Essentials",
     categories: [
       "Rent / Mortgage",
