@@ -2,7 +2,7 @@
 
 import React, { useMemo } from "react";
 import { motion, Variants } from "framer-motion";
-import { useBudgetStore } from "@/app/lib/store";
+import { useFirebaseStore } from "@/lib/store-firebase";
 import { budgetTemplate } from "@/app/utils/template";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +30,7 @@ const cardVariants: Variants = {
 
 export default function SavingsTrendCard() {
   // Fetch budgets and savings categories
-  const budgets = useBudgetStore((state) => state.budgets);
+  const budgets = useFirebaseStore((state) => state.budgets);
   const savingsGroup = budgetTemplate.find((g) => g.title === "Savings & Investments");
   const savingsCategories = savingsGroup?.categories || [];
 

@@ -1,12 +1,12 @@
 "use client";
 
-import { useBudgetStore } from "@/app/lib/store";
+import { useFirebaseStore } from "@/lib/store-firebase";
 import { budgetTemplate } from "@/app/utils/template";
 import { motion, Variants } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { PiggyBank, TrendingUp } from "lucide-react";
+import { PiggyBank, TrendingUp, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // — Motion variants —
@@ -38,7 +38,7 @@ const rowVariants: Variants = {
 };
 
 export default function SavingsSummaryCard() {
-  const budgets = useBudgetStore((state) => state.budgets);
+  const budgets = useFirebaseStore((state) => state.budgets);
 
   const savingsCategories =
     budgetTemplate.find((g) => g.title === "Savings & Investments")?.categories || [];

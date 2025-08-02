@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Separator } from "@/components/ui/separator";
 import { Target, Trash2, Plus, Umbrella, Car, Home, PiggyBank, LifeBuoy } from "lucide-react";
-import { useBudgetStore } from "@/app/lib/store";
+import { useFirebaseStore } from "@/lib/store-firebase";
 import { cn } from "@/lib/utils";
 
 // Progress bar animation
@@ -59,7 +59,7 @@ interface FormState {
 }
 
 export default function GoalsTrackerCard() {
-  const { goals, addGoal, deleteGoal, getSavedAmountForGoal, budgets } = useBudgetStore();
+  const { goals, addGoal, deleteGoal, getSavedAmountForGoal, budgets } = useFirebaseStore();
   const [formState, setFormState] = useState<FormState>({
     title: "",
     target: "",
@@ -72,7 +72,7 @@ export default function GoalsTrackerCard() {
     goals.forEach((goal) => {
       const saved = getSavedAmountForGoal(goal.title);
       if (saved !== goal.saved) {
-        useBudgetStore.getState().updateGoal(goal.id, { saved });
+        useFirebaseStore.getState().updateGoal(goal.id, { saved });
       }
     });
   }, [budgets, goals, getSavedAmountForGoal]);

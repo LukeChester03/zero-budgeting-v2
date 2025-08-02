@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useBudgetStore } from "@/app/lib/store";
+import { useFirebaseStore } from "@/lib/store-firebase";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,13 +41,13 @@ const sectionVariants = {
 };
 
 export default function DebtsForm() {
-  const debts = useBudgetStore((s) => s.debts);
-  const budgets = useBudgetStore((s) => s.budgets);
-  const addDebt = useBudgetStore((s) => s.addDebt);
-  const updateDebt = useBudgetStore((s) => s.updateDebt);
-  const removeDebt = useBudgetStore((s) => s.removeDebt);
-  const income = useBudgetStore((s) => s.income);
-  const getRepaidAmountForDebt = useBudgetStore((s) => s.getRepaidAmountForDebt);
+  const debts = useFirebaseStore((s) => s.debts);
+  const budgets = useFirebaseStore((s) => s.budgets);
+  const addDebt = useFirebaseStore((s) => s.addDebt);
+  const updateDebt = useFirebaseStore((s) => s.updateDebt);
+  const removeDebt = useFirebaseStore((s) => s.removeDebt);
+  const income = useFirebaseStore((s) => s.income);
+  const getRepaidAmountForDebt = useFirebaseStore((s) => s.getRepaidAmountForDebt);
 
   // Initialize local state for debt creation
   const [localDebts, setLocalDebts] = useState<DebtInput[]>(

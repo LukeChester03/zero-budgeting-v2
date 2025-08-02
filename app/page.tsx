@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useFirebaseStore } from "@/lib/store-firebase";
+import { useAuth } from "@/lib/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import ClientOnly from "@/app/components/ClientOnly";
 import MonthlyIncomeInput from "@/app/components/MonthlyIncomeInput";
+import AuthModal from "@/app/components/AuthModal";
 import { 
   Plus, 
   PiggyBank, 
@@ -22,12 +24,23 @@ import {
   AlertCircle,
   CheckCircle,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Shield,
+  Zap,
+  BarChart3,
+  Users,
+  Award,
+  Clock,
+  BookOpen,
+  Lightbulb
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 export default function Home() {
   const router = useRouter();
+  const { user } = useAuth();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // Store data
   const income = useFirebaseStore((s) => s.income);
@@ -49,6 +62,7 @@ export default function Home() {
   const handleViewBudgets = () => router.push("/previous-budgets");
   const handleViewDebts = () => router.push("/loans");
   const handleViewAnalysis = () => router.push("/analysis");
+  const handleSignIn = () => setIsAuthModalOpen(true);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -69,6 +83,268 @@ export default function Home() {
     },
   };
 
+  // If user is not authenticated, show educational hub
+  if (!user) {
+  return (
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20"
+      >
+        {/* Hero Section */}
+        <section className="relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent" />
+          <div className="relative container mx-auto px-6 py-24">
+            <motion.div variants={itemVariants} className="text-center mb-12">
+              <div className="flex items-center justify-center gap-2 mb-6">
+                <Sparkles className="h-8 w-8 text-primary" />
+                <h1 className="text-4xl md:text-6xl font-bold text-primary">
+                  Zero Budgeting
+      </h1>
+              </div>
+              <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
+                Take control of your finances with intelligent budgeting, goal tracking, and debt management. 
+                Every penny has a purpose.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Button size="lg" className="bg-primary hover:bg-primary/90" onClick={handleSignIn}>
+                  <Shield className="h-4 w-4 mr-2" />
+                  Get Started Free
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        </section>
+
+        <div className="container mx-auto px-6 pb-12">
+          {/* Features Section */}
+          <motion.section variants={itemVariants} className="mb-16">
+            <div className="text-center mb-12 mt-12">
+              <h2 className="text-3xl font-bold mb-4">Why Choose Zero Budgeting?</h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto">
+                Our comprehensive financial management platform helps you build wealth, eliminate debt, and achieve your financial goals.
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              <Card className="group hover:shadow-lg transition-all duration-300">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="p-3 bg-primary/10 rounded-xl">
+                      <PiggyBank className="h-8 w-8 text-primary" />
+                    </div>
+                    <h3 className="font-semibold text-lg">Smart Budgeting</h3>
+                  </div>
+                  <p className="text-muted-foreground">
+                    Create detailed monthly budgets with automatic goal and debt allocation. Every pound is assigned a purpose.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="group hover:shadow-lg transition-all duration-300">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="p-3 bg-green-500/10 rounded-xl">
+                      <Target className="h-8 w-8 text-green-500" />
+                    </div>
+                    <h3 className="font-semibold text-lg">Goal Tracking</h3>
+                  </div>
+                  <p className="text-muted-foreground">
+                    Set financial goals and track your progress. Watch your savings grow with visual progress indicators.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="group hover:shadow-lg transition-all duration-300">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="p-3 bg-orange-500/10 rounded-xl">
+                      <CreditCard className="h-8 w-8 text-orange-500" />
+                    </div>
+                    <h3 className="font-semibold text-lg">Debt Management</h3>
+                  </div>
+                  <p className="text-muted-foreground">
+                    Track and manage your debt repayment with automatic monthly allocation and progress monitoring.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="group hover:shadow-lg transition-all duration-300">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="p-3 bg-purple-500/10 rounded-xl">
+                      <BarChart3 className="h-8 w-8 text-purple-500" />
+                    </div>
+                    <h3 className="font-semibold text-lg">Financial Analytics</h3>
+                  </div>
+                  <p className="text-muted-foreground">
+                    Get detailed insights into your spending patterns and financial health with comprehensive analytics.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="group hover:shadow-lg transition-all duration-300">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="p-3 bg-indigo-500/10 rounded-xl">
+                      <Zap className="h-8 w-8 text-indigo-500" />
+                    </div>
+                    <h3 className="font-semibold text-lg">Automatic Allocation</h3>
+                  </div>
+                  <p className="text-muted-foreground">
+                    Goals and debts are automatically allocated in your budgets, ensuring you stay on track.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="group hover:shadow-lg transition-all duration-300">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="p-3 bg-teal-500/10 rounded-xl">
+                      <Award className="h-8 w-8 text-teal-500" />
+                    </div>
+                    <h3 className="font-semibold text-lg">Progress Tracking</h3>
+                  </div>
+                  <p className="text-muted-foreground">
+                    Visual progress indicators help you stay motivated and see your financial journey unfold.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </motion.section>
+
+          {/* How It Works */}
+          <motion.section variants={itemVariants} className="mb-16">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold mb-4">How It Works</h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto">
+                Get started in minutes with our simple three-step process
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl font-bold text-primary">1</span>
+                </div>
+                <h3 className="font-semibold text-lg mb-2">Set Your Income</h3>
+                <p className="text-muted-foreground">
+                  Enter your monthly income after taxes to establish your financial foundation.
+                </p>
+              </div>
+
+              <div className="text-center">
+                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl font-bold text-primary">2</span>
+                </div>
+                <h3 className="font-semibold text-lg mb-2">Create Your Budget</h3>
+                <p className="text-muted-foreground">
+                  Allocate every pound to specific categories, goals, and debt payments.
+                </p>
+              </div>
+
+              <div className="text-center">
+                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl font-bold text-primary">3</span>
+                </div>
+                <h3 className="font-semibold text-lg mb-2">Track & Grow</h3>
+                <p className="text-muted-foreground">
+                  Monitor your progress, adjust as needed, and watch your financial goals become reality.
+                </p>
+              </div>
+            </div>
+          </motion.section>
+
+          {/* Benefits */}
+          <motion.section variants={itemVariants} className="mb-16">
+            <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
+              <CardContent className="p-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div>
+                    <h3 className="text-2xl font-bold mb-4">Benefits of Zero Budgeting</h3>
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-3">
+                        <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
+                        <div>
+                          <h4 className="font-semibold">Complete Financial Control</h4>
+                          <p className="text-sm text-muted-foreground">Every pound has a purpose, eliminating wasteful spending.</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
+                        <div>
+                          <h4 className="font-semibold">Goal Achievement</h4>
+                          <p className="text-sm text-muted-foreground">Set and track financial goals with automatic allocation.</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
+                        <div>
+                          <h4 className="font-semibold">Debt Freedom</h4>
+                          <p className="text-sm text-muted-foreground">Systematic debt repayment with progress tracking.</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
+                        <div>
+                          <h4 className="font-semibold">Financial Peace</h4>
+                          <p className="text-sm text-muted-foreground">Reduce stress with clear financial visibility and control.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Lightbulb className="h-12 w-12 text-primary" />
+                      </div>
+                      <h4 className="font-semibold text-lg mb-2">Start Your Journey</h4>
+                      <p className="text-muted-foreground mb-4">
+                        Join thousands of users who have transformed their financial lives with zero budgeting.
+                      </p>
+                      <Button size="lg" className="bg-primary hover:bg-primary/90" onClick={handleSignIn}>
+                        <Shield className="h-4 w-4 mr-2" />
+                        Create Free Account
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.section>
+
+          {/* Call to Action */}
+          <motion.section variants={itemVariants}>
+            <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
+              <CardContent className="p-8 text-center">
+                <div className="max-w-2xl mx-auto">
+                  <h3 className="text-2xl font-bold mb-4">Ready to Transform Your Finances?</h3>
+                  <p className="text-muted-foreground mb-6">
+                    Join the zero budgeting revolution and take control of your financial future today.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <Button size="lg" className="bg-primary hover:bg-primary/90" onClick={handleSignIn}>
+                      <Shield className="h-4 w-4 mr-2" />
+                      Get Started Free
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.section>
+        </div>
+
+        {/* Auth Modal */}
+        <AuthModal 
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+        />
+      </motion.div>
+    );
+  }
+
+  // Authenticated user dashboard (existing code)
   return (
     <motion.div
       variants={containerVariants}
@@ -85,7 +361,7 @@ export default function Home() {
               <Sparkles className="h-8 w-8 text-primary" />
               <h1 className="text-4xl md:text-6xl font-bold text-primary">
                 Zero Budgeting
-      </h1>
+              </h1>
             </div>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               Take control of your finances with intelligent budgeting and spending analysis
@@ -141,48 +417,48 @@ export default function Home() {
             }
           >
             <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <DollarSign className="h-6 w-6 text-primary" />
+              <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <DollarSign className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Monthly Income</p>
+                      <p className="text-2xl font-bold">£{income.toFixed(2)}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Monthly Income</p>
-                    <p className="text-2xl font-bold">£{income.toFixed(2)}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            <Card className="bg-background/80 backdrop-blur-sm border-green-500/20">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-500/10 rounded-lg">
-                    <PiggyBank className="h-6 w-6 text-green-500" />
+              <Card className="bg-background/80 backdrop-blur-sm border-green-500/20">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-green-500/10 rounded-lg">
+                      <PiggyBank className="h-6 w-6 text-green-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Saved</p>
+                      <p className="text-2xl font-bold text-green-600">£{totalSaved.toFixed(2)}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Saved</p>
-                    <p className="text-2xl font-bold text-green-600">£{totalSaved.toFixed(2)}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            <Card className="bg-background/80 backdrop-blur-sm border-orange-500/20">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-orange-500/10 rounded-lg">
-                    <CreditCard className="h-6 w-6 text-orange-500" />
+              <Card className="bg-background/80 backdrop-blur-sm border-orange-500/20">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-orange-500/10 rounded-lg">
+                      <CreditCard className="h-6 w-6 text-orange-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Monthly Debt</p>
+                      <p className="text-2xl font-bold text-orange-600">£{totalDebtRepayments.toFixed(2)}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Monthly Debt</p>
-                    <p className="text-2xl font-bold text-orange-600">£{totalDebtRepayments.toFixed(2)}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+                </CardContent>
+              </Card>
+            </motion.div>
           </ClientOnly>
         </div>
       </section>
@@ -219,8 +495,6 @@ export default function Home() {
                 </div>
               </CardContent>
             </Card>
-
-
 
             <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer">
               <CardContent className="p-6" onClick={handleViewSavings}>

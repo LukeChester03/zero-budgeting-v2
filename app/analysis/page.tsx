@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useBudgetStore } from "@/app/lib/store";
+import { useFirebaseStore } from "@/lib/store-firebase";
 
 interface Analysis {
   summary: string;
@@ -16,9 +16,9 @@ interface Analysis {
 }
 
 export default function BudgetAnalysisPage() {
-  const budgets = useBudgetStore((s) => s.budgets);
-  const debts = useBudgetStore((s) => s.debts);
-  const income = useBudgetStore((s) => s.income);
+  const budgets = useFirebaseStore((s) => s.budgets);
+  const debts = useFirebaseStore((s) => s.debts);
+  const income = useFirebaseStore((s) => s.income);
 
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [loading, setLoading] = useState(false);

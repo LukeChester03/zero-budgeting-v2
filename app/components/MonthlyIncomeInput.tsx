@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { DollarSign, Save, CheckCircle, AlertCircle } from "lucide-react";
 import { useFirebaseStore } from "@/lib/store-firebase";
 import { useAuth } from "@/lib/auth-context";
+import { userService } from "@/lib/user-service";
 
 export default function MonthlyIncomeInput() {
   const [income, setIncome] = useState("");
@@ -22,7 +23,7 @@ export default function MonthlyIncomeInput() {
   const [isNotEarning, setIsNotEarning] = useState(false);
   
   const { user } = useAuth();
-  const { income: storeIncome, isEarning: storeIsEarning, setIncome: setStoreIncome, setIsEarning: setStoreIsEarning } = useFirebaseStore();
+  const { income: storeIncome, isEarning: storeIsEarning, saveIncome } = useFirebaseStore();
 
   useEffect(() => {
     if (storeIncome > 0) {
@@ -30,12 +31,55 @@ export default function MonthlyIncomeInput() {
     }
   }, [storeIncome]);
 
+  // Update local state when store income changes
+  useEffect(() => {
+    if (storeIncome > 0) {
+      setIncome(storeIncome.toString());
+      // Hide modal if income is loaded from store
+      if (showModal) {
+        console.log('Income loaded from store, hiding modal');
+        setShowModal(false);
+      }
+    } else {
+      setIncome("");
+    }
+  }, [storeIncome, showModal]);
+
   // Show modal for new users or users with £0 income
   useEffect(() => {
-    if (user && storeIncome === 0 && !showModal) {
-      setShowModal(true);
+    if (user && !showModal) {
+      const checkIncomeStatus = async () => {
+        try {
+          const userProfile = await userService.getUserProfile(user.uid);
+          
+          // Check if user profile exists and has income set
+          if (userProfile && userProfile.monthlyIncome !== undefined && userProfile.monthlyIncome > 0) {
+            console.log('Income already exists for user, not showing modal');
+            // Income exists, don't show modal
+            return;
+          }
+          
+          // Show modal if:
+          // 1. No user profile exists (new user)
+          // 2. User profile exists but monthlyIncome is 0, undefined, or null
+          // 3. User is earning (isEarning is true or undefined)
+          if (!userProfile || 
+              (userProfile.monthlyIncome === undefined || userProfile.monthlyIncome === 0 || userProfile.monthlyIncome === null) &&
+              (userProfile?.isEarning !== false)) {
+            console.log('Showing income modal - user needs to set income');
+            setShowModal(true);
+          } else {
+            console.log('Income already set or user not earning, not showing modal');
+          }
+        } catch (error) {
+          console.error('Error checking user profile:', error);
+          // If we can't check, don't show modal
+        }
+      };
+      
+      checkIncomeStatus();
     }
-  }, [user, storeIncome, showModal]);
+  }, [user, showModal]);
 
   const handleSave = async () => {
     if (!user) {
@@ -53,25 +97,38 @@ export default function MonthlyIncomeInput() {
     setError("");
 
     try {
-      // Update the store
-      setStoreIncome(incomeValue);
-      setStoreIsEarning(!isNotEarning);
+      console.log('Attempting to save income:', { incomeValue, isNotEarning, userId: user.uid });
       
-      // Save to Firestore (you can add this later if needed)
-      // await userService.updateUserProfile(user.uid, { 
-      //   monthlyIncome: incomeValue,
-      //   isEarning: !isNotEarning 
-      // });
+      // Use the store's saveIncome function
+      await saveIncome(incomeValue, !isNotEarning);
       
+      console.log('Income saved successfully');
+      
+      // Close modal and reset form
       setIsEditing(false);
       setShowModal(false);
+      setIncome("");
+      setIsNotEarning(false);
       setShowSuccess(true);
       
       setTimeout(() => {
         setShowSuccess(false);
       }, 3000);
     } catch (error) {
-      setError("Failed to save income. Please try again.");
+      console.error('Error saving income:', error);
+      
+      // Provide more specific error messages
+      if (error instanceof Error) {
+        if (error.message.includes('permission-denied')) {
+          setError("Permission denied. Please try logging out and back in.");
+        } else if (error.message.includes('not authenticated')) {
+          setError("You must be logged in to save your income.");
+        } else {
+          setError(`Failed to save income: ${error.message}`);
+        }
+      } else {
+        setError("Failed to save income. Please try again.");
+      }
     } finally {
       setIsSaving(false);
     }
@@ -358,4 +415,4 @@ export default function MonthlyIncomeInput() {
       </Dialog>
     </>
   );
-} 
+}

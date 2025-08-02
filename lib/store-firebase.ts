@@ -76,12 +76,13 @@ interface FirebaseStore {
   unsubscribeCustomCategories: (() => void) | null;
   
   // Actions
-  setUser: (user: User | null) => void;
+  setUser: (user: User | null) => Promise<void>;
   setUserProfile: (profile: UserProfile | null) => void;
   setUserStats: (stats: UserStats | null) => void;
   setIncome: (income: number) => void;
   setIsEarning: (isEarning: boolean) => void;
   setIsLoading: (isLoading: boolean) => void;
+  saveIncome: (income: number, isEarning: boolean) => Promise<void>;
   
   // Budget actions
   addBudget: (budget: Omit<Budget, 'id' | 'userId'>) => Promise<void>;
@@ -135,11 +136,61 @@ export const useFirebaseStore = create<FirebaseStore>()(
       unsubscribeCustomCategories: null,
 
       // Auth actions
-      setUser: (user) => {
+      setUser: async (user) => {
         set({ user });
         if (user) {
-          get().initializeFirebaseListeners();
+          try {
+            console.log('Loading user profile for:', user.uid);
+            
+            // Always ensure user profile exists in database
+            let userProfile = await userService.getUserProfile(user.uid);
+            
+            if (!userProfile) {
+              console.log('No user profile found, creating one...');
+              // User exists in Firebase Auth but not in database, create profile
+              try {
+                await userService.createUserProfile(user);
+                console.log('User profile created for existing Firebase user');
+                // Get the newly created profile
+                userProfile = await userService.getUserProfile(user.uid);
+              } catch (createError) {
+                console.error('Error creating user profile for existing user:', createError);
+              }
+            }
+            
+            if (userProfile) {
+              console.log('User profile loaded:', userProfile);
+              const income = userProfile.monthlyIncome || 0;
+              const isEarning = userProfile.isEarning !== false; // Default to true unless explicitly false
+              
+              console.log('Setting income from profile:', { income, isEarning });
+              set({ 
+                income,
+                isEarning
+              });
+            } else {
+              console.log('Using default values for user');
+              set({ 
+                income: 0,
+                isEarning: true
+              });
+            }
+            
+            // Add a delay to ensure user is fully authenticated before initializing listeners
+            setTimeout(() => {
+              console.log('Initializing Firebase listeners for user:', user.uid);
+              get().initializeFirebaseListeners();
+            }, 3000); // Increased delay to ensure proper authentication
+          } catch (error) {
+            console.error('Error loading user profile:', error);
+            // Still initialize listeners even if profile loading fails
+            setTimeout(() => {
+              console.log('Initializing Firebase listeners after profile load error');
+              get().initializeFirebaseListeners();
+            }, 3000);
+          }
         } else {
+          console.log('User logged out, cleaning up');
           get().cleanupFirebaseListeners();
           set({ 
             budgets: [], 
@@ -147,7 +198,9 @@ export const useFirebaseStore = create<FirebaseStore>()(
             goals: [], 
             userProfile: null, 
             userStats: null,
-            customCategoriesBySection: {}
+            customCategoriesBySection: {},
+            income: 0, // Reset income to 0 when user is not authenticated
+            isEarning: true
           });
         }
       },
@@ -157,6 +210,35 @@ export const useFirebaseStore = create<FirebaseStore>()(
       setIncome: (income) => set({ income }),
       setIsEarning: (isEarning: boolean) => set({ isEarning }),
       setIsLoading: (isLoading: boolean) => set({ isLoading }),
+      
+      saveIncome: async (income, isEarning) => {
+        const { user } = get();
+        if (!user) {
+          throw new Error("User not authenticated");
+        }
+        
+        console.log('saveIncome called with:', { income, isEarning, userId: user.uid });
+        
+        try {
+          // Update the store first
+          set({ income, isEarning });
+          console.log('Store updated with income:', { income, isEarning });
+          
+          // Save to user profile in Firestore
+          console.log('Attempting to update user profile in Firestore...');
+          await userService.updateUserProfile(user.uid, { 
+            monthlyIncome: income,
+            isEarning: isEarning 
+          });
+          
+          console.log('Income saved successfully to Firestore:', { income, isEarning });
+        } catch (error) {
+          console.error('Error saving income:', error);
+          // Revert store changes on error
+          set({ income: get().income, isEarning: get().isEarning });
+          throw error;
+        }
+      },
 
       // Budget actions
       addBudget: async (budget) => {
@@ -497,8 +579,8 @@ export const useFirebaseStore = create<FirebaseStore>()(
 
 // Initialize auth listener only on client side
 if (typeof window !== 'undefined') {
-  onAuthStateChanged(auth, (user) => {
-    useFirebaseStore.getState().setUser(user);
+  onAuthStateChanged(auth, async (user) => {
+    await useFirebaseStore.getState().setUser(user);
     useFirebaseStore.getState().setIsLoading(false);
   });
 } 

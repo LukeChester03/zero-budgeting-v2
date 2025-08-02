@@ -21,7 +21,7 @@ const headerVariants: Variants = {
 };
 
 export default function Header() {
-  const { user, isLoading, logout } = useAuth();
+  const { user, isLoading, signOut } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
@@ -37,7 +37,7 @@ export default function Header() {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      await logout();
+      await signOut();
     } catch (error) {
       console.error("Logout failed:", error);
     } finally {
@@ -74,19 +74,21 @@ export default function Header() {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-6">
-            <NavigationMenu>
-              <NavigationMenuList>
-                {navItems.map(({ label, path }) => (
-                  <NavigationMenuItem key={path}>
-                    <NavigationMenuLink asChild>
-                      <NavItem href={path}>
-                        {label}
-                      </NavItem>
-                    </NavigationMenuLink>
-                  </NavigationMenuItem>
-                ))}
-              </NavigationMenuList>
-            </NavigationMenu>
+            {user && (
+              <NavigationMenu>
+                <NavigationMenuList>
+                  {navItems.map(({ label, path }) => (
+                    <NavigationMenuItem key={path}>
+                      <NavigationMenuLink asChild>
+                        <NavItem href={path}>
+                          {label}
+                        </NavItem>
+                      </NavigationMenuLink>
+                    </NavigationMenuItem>
+                  ))}
+                </NavigationMenuList>
+              </NavigationMenu>
+            )}
           </nav>
 
           {/* User Menu / Auth */}
