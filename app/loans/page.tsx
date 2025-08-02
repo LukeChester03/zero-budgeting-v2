@@ -2,7 +2,8 @@
 
 import React, { useMemo, useState } from "react";
 import { motion, Variants } from "framer-motion";
-import { useBudgetStore } from "@/app/lib/store";
+import { useFirebaseStore } from "@/lib/store-firebase";
+import { useAuth } from "@/lib/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +51,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { useToast } from "@/hooks/use-toast";
 
 interface Debt {
   id: string;
@@ -62,6 +64,7 @@ interface Debt {
   priority: keyof typeof PRIORITY_COLORS;
   notes?: string;
   monthlyRepayment: number;
+  endDate?: string;
 }
 
 // Animation variants
@@ -110,16 +113,18 @@ interface DebtFormData {
   debtType: keyof typeof DEBT_TYPES;
   priority: keyof typeof PRIORITY_COLORS;
   notes: string;
+  endDate: string;
 }
 
 export default function LoansPage() {
-  const debts = useBudgetStore((s) => s.debts);
-  const budgets = useBudgetStore((s) => s.budgets);
-  const income = useBudgetStore((s) => s.income);
-  const addDebt = useBudgetStore((s) => s.addDebt);
-  const updateDebt = useBudgetStore((s) => s.updateDebt);
-  const removeDebt = useBudgetStore((s) => s.removeDebt);
-  const getRepaidAmountForDebt = useBudgetStore((s) => s.getRepaidAmountForDebt);
+  const debts = useFirebaseStore((s) => s.debts);
+  const budgets = useFirebaseStore((s) => s.budgets);
+  const income = useFirebaseStore((s) => s.income);
+  const addDebt = useFirebaseStore((s) => s.addDebt);
+  const updateDebt = useFirebaseStore((s) => s.updateDebt);
+  const deleteDebt = useFirebaseStore((s) => s.deleteDebt);
+  const getRepaidAmountForDebt = useFirebaseStore((s) => s.getRepaidAmountForDebt);
+  const { toast } = useToast();
 
   // Form state
   const [isAddDebtModalOpen, setIsAddDebtModalOpen] = useState(false);
@@ -133,6 +138,7 @@ export default function LoansPage() {
     debtType: "other",
     priority: "medium",
     notes: "",
+    endDate: new Date().toISOString().split('T')[0],
   });
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
 
@@ -274,7 +280,7 @@ export default function LoansPage() {
     return Object.keys(errors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
     
@@ -287,28 +293,49 @@ export default function LoansPage() {
       debtType: debtForm.debtType,
       priority: debtForm.priority,
       notes: debtForm.notes.trim(),
+      endDate: debtForm.endDate,
+      monthlyRepayment: parseFloat(debtForm.totalAmount) / parseInt(debtForm.months),
+      isActive: true,
     };
 
-    if (editingDebt) {
-      updateDebt(editingDebt.id, debtData);
-      setEditingDebt(null);
-    } else {
-      addDebt(debtData);
-    }
+    try {
+      if (editingDebt) {
+        await updateDebt(editingDebt.id, debtData);
+        toast({
+          title: "Success",
+          description: "Debt updated successfully!",
+        });
+        setEditingDebt(null);
+      } else {
+        await addDebt(debtData);
+        toast({
+          title: "Success",
+          description: "Debt added successfully!",
+        });
+      }
 
-    // Reset form
-    setDebtForm({
-      name: "",
-      totalAmount: "",
-      months: "",
-      interestRate: "",
-      startDate: new Date().toISOString().split('T')[0],
-      debtType: "other",
-      priority: "medium",
-      notes: "",
-    });
-    setFormErrors({});
-    setIsAddDebtModalOpen(false);
+      // Reset form
+      setDebtForm({
+        name: "",
+        totalAmount: "",
+        months: "",
+        interestRate: "",
+        startDate: new Date().toISOString().split('T')[0],
+        debtType: "other",
+        priority: "medium",
+        notes: "",
+        endDate: new Date().toISOString().split('T')[0],
+      });
+      setFormErrors({});
+      setIsAddDebtModalOpen(false);
+    } catch (error) {
+      console.error('Error saving debt:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save debt. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleEditDebt = (debt: Debt) => {
@@ -322,12 +349,26 @@ export default function LoansPage() {
       debtType: debt.debtType || "other",
       priority: debt.priority || "medium",
       notes: debt.notes || "",
+      endDate: debt.endDate || new Date().toISOString().split('T')[0],
     });
     setIsAddDebtModalOpen(true);
   };
 
-  const handleDeleteDebt = (debtId: string) => {
-    removeDebt(debtId);
+  const handleDeleteDebt = async (debtId: string) => {
+    try {
+      await deleteDebt(debtId);
+      toast({
+        title: "Success",
+        description: "Debt deleted successfully!",
+      });
+    } catch (error) {
+      console.error('Error deleting debt:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete debt. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const getDebtToIncomeStatus = (ratio: number) => {
@@ -865,6 +906,18 @@ export default function LoansPage() {
                               <SelectItem value="low">Low Priority</SelectItem>
                             </SelectContent>
                           </Select>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="debt-end">End Date (Optional)</Label>
+                          <Input
+                            id="debt-end"
+                            type="date"
+                            value={debtForm.endDate}
+                            onChange={(e) => setDebtForm(prev => ({ ...prev, endDate: e.target.value }))}
+                          />
                         </div>
                       </div>
                       

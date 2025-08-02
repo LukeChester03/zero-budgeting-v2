@@ -33,6 +33,8 @@ export interface Debt {
   priority: string;
   notes?: string;
   monthlyRepayment: number;
+  endDate?: string; // Optional end date for debt repayment
+  isActive: boolean;
   createdAt?: any;
   updatedAt?: any;
 }
@@ -106,6 +108,7 @@ interface FirebaseStore {
   addCustomCategory: (section: string, name: string) => void;
   getSavedAmountForGoal: (goalTitle: string) => number;
   allocateGoalContributions: (budget: Omit<Budget, 'id' | 'userId'>) => Promise<void>;
+  allocateDebtPayments: (budget: Omit<Budget, 'id' | 'userId'>) => Promise<void>;
   
   // Initialize Firebase listeners
   initializeFirebaseListeners: () => void;
@@ -183,7 +186,8 @@ export const useFirebaseStore = create<FirebaseStore>()(
         
         const debtData = {
           ...debt,
-          userId: user.uid
+          userId: user.uid,
+          isActive: true
         };
         
         await firestoreUtils.create(COLLECTIONS.DEBTS, debtData);
@@ -256,10 +260,13 @@ export const useFirebaseStore = create<FirebaseStore>()(
         const debt = debts.find(d => d.name === debtName);
         if (!debt) return 0;
 
-        const startDate = new Date(debt.startDate);
-        const totalMonths = Math.floor((Date.now() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
-        
-        return Math.min(totalMonths * debt.monthlyRepayment, debt.totalAmount);
+        // Calculate repaid amount based on budget allocations
+        const totalRepaid = budgets.reduce((total, budget) => {
+          const debtAllocation = budget.allocations.find(alloc => alloc.category === debtName);
+          return total + (debtAllocation?.amount || 0);
+        }, 0);
+
+        return Math.min(totalRepaid, debt.totalAmount);
       },
 
       getBudgetTotal: (allocations) => {
@@ -347,6 +354,39 @@ export const useFirebaseStore = create<FirebaseStore>()(
             updatedAllocations.push({
               category: goal.title,
               amount: goal.monthlyContribution
+            });
+          }
+        });
+        
+        // Update the budget with new allocations
+        const updatedBudget = {
+          ...budget,
+          allocations: updatedAllocations
+        };
+        
+        // Save to Firebase
+        await firestoreUtils.create(COLLECTIONS.BUDGETS, {
+          ...updatedBudget,
+          userId: user.uid
+        });
+      },
+
+      allocateDebtPayments: async (budget) => {
+        const { user, debts } = get();
+        if (!user) throw new Error("User not authenticated");
+        
+        const activeDebts = debts.filter(debt => debt.isActive);
+        let updatedAllocations = [...budget.allocations];
+        
+        // Add debt payments to allocations
+        activeDebts.forEach(debt => {
+          const existingAllocation = updatedAllocations.find(alloc => alloc.category === debt.name);
+          if (existingAllocation) {
+            existingAllocation.amount += debt.monthlyRepayment;
+          } else {
+            updatedAllocations.push({
+              category: debt.name,
+              amount: debt.monthlyRepayment
             });
           }
         });

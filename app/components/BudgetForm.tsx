@@ -94,6 +94,7 @@ export default function BudgetForm() {
   const getCustomCategories = useFirebaseStore((s) => s.getCustomCategories);
   const addCustomCategory = useFirebaseStore((s) => s.addCustomCategory);
   const allocateGoalContributions = useFirebaseStore((s) => s.allocateGoalContributions);
+  const allocateDebtPayments = useFirebaseStore((s) => s.allocateDebtPayments);
   const debts = useFirebaseStore((s) => s.debts);
   const budgets = useFirebaseStore((s) => s.budgets);
   const goals = useFirebaseStore((s) => s.goals);
@@ -172,14 +173,15 @@ export default function BudgetForm() {
         });
       } else {
         // Pre-fill with debt amounts
-        debts.forEach(debt => {
+        const activeDebtsForPrefill = debts.filter(d => d.isActive);
+        activeDebtsForPrefill.forEach(debt => {
           initialAmounts[debt.name] = debt.monthlyRepayment;
         });
 
         // Pre-fill with previous month's budget if available
         if (previousBudget) {
           previousBudget.allocations.forEach(({ category, amount }) => {
-            if (!debts.some(d => d.name === category)) {
+            if (!activeDebtsForPrefill.some(d => d.name === category)) {
               initialAmounts[category] = amount;
             }
           });
@@ -192,8 +194,16 @@ export default function BudgetForm() {
           initialAmounts[goal.title] = goal.monthlyContribution;
         });
         
+        // Automatically allocate debt payments
+        const activeDebtsForAllocation = debts.filter(d => d.isActive);
+        activeDebtsForAllocation.forEach(debt => {
+          // Set the debt allocation to the monthly repayment
+          initialAmounts[debt.name] = debt.monthlyRepayment;
+        });
+        
         // Log for debugging
         console.log('Active goals:', activeGoals);
+        console.log('Active debts:', activeDebtsForAllocation);
         console.log('Initial amounts after goal allocation:', initialAmounts);
       }
    }
@@ -317,12 +327,21 @@ export default function BudgetForm() {
           allocations,
         };
         
-        // Allocate goal contributions if there are active goals
-        if (goals.filter(g => g.isActive).length > 0) {
-          await allocateGoalContributions(budgetData);
+        // Allocate goal contributions and debt payments if there are active goals or debts
+        const activeGoals = goals.filter(g => g.isActive);
+        const activeDebts = debts.filter(d => d.isActive);
+        
+        if (activeGoals.length > 0 || activeDebts.length > 0) {
+          // Allocate both goals and debts
+          if (activeGoals.length > 0) {
+            await allocateGoalContributions(budgetData);
+          }
+          if (activeDebts.length > 0) {
+            await allocateDebtPayments(budgetData);
+          }
           toast({
             title: "Success",
-            description: "Budget created successfully with goal allocations!",
+            description: "Budget created successfully with goal and debt allocations!",
           });
         } else {
           await addBudget(budgetData);
@@ -349,13 +368,14 @@ export default function BudgetForm() {
       const resetAmounts: { [cat: string]: number } = {};
       
       // Reset to debt amounts
-      debts.forEach(debt => {
+      const activeDebts = debts.filter(d => d.isActive);
+      activeDebts.forEach(debt => {
         resetAmounts[debt.name] = debt.monthlyRepayment;
       });
 
       // Add previous month's allocations
       previousBudget.allocations.forEach(({ category, amount }) => {
-        if (!debts.some(d => d.name === category)) {
+        if (!activeDebts.some(d => d.name === category)) {
           resetAmounts[category] = amount;
         }
       });
@@ -687,6 +707,38 @@ export default function BudgetForm() {
         </motion.div>
       )}
 
+      {/* Debt Allocations Breakdown */}
+      {debts.filter(d => d.isActive).length > 0 && (
+        <motion.div variants={itemVariants} className="mb-8">
+          <Card className="border-red-200 bg-red-50/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-red-700">
+                <CreditCard className="h-5 w-5" />
+                Debt Allocations
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {debts.filter(d => d.isActive).map(debt => (
+                <div key={debt.id} className="flex justify-between items-center p-2 bg-white/50 rounded">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-4 w-4 text-red-600" />
+                    <span className="font-medium">{debt.name}</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-semibold text-red-700">
+                      £{(amounts[debt.name] || 0).toFixed(2)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Total: £{debt.totalAmount.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
       {/* Budget Categories */}
       <motion.div variants={itemVariants}>
         <Tabs defaultValue="categories" className="space-y-6">
@@ -707,12 +759,24 @@ export default function BudgetForm() {
             allCategories = [...activeGoals, ...custom];
           }
           
+          // Dynamically populate Debts section with user's active debts
+          if (group.title === "Debts") {
+            const activeDebts = debts.filter(d => d.isActive).map(d => d.name);
+            allCategories = [...activeDebts, ...custom];
+          }
+          
+          // Skip rendering if no categories in this group
+          if (allCategories.length === 0) {
+            return null;
+          }
+          
           const debtsInGroup = debts.filter((d) => allCategories.includes(d.name));
           const userCategories = allCategories.filter((cat) => !debts.some((d) => d.name === cat));
 
           return (
                    <Card key={group.title} className={cn(
-                     group.title === "Goals" && "border-green-200 bg-green-50/30"
+                     group.title === "Goals" && "border-green-200 bg-green-50/30",
+                     group.title === "Debts" && "border-red-200 bg-red-50/30"
                    )}>
                      <CardHeader className="pb-4">
                        <div className="flex justify-between items-center">
@@ -720,10 +784,16 @@ export default function BudgetForm() {
                            {CATEGORY_ICONS[group.title] || <Calculator className="h-4 w-4" />}
                            <CardTitle className={cn(
                              "text-lg",
-                             group.title === "Goals" && "text-green-700"
+                             group.title === "Goals" && "text-green-700",
+                             group.title === "Debts" && "text-red-700"
                            )}>{group.title}</CardTitle>
                            {group.title === "Goals" && (
                              <Badge variant="outline" className="text-xs bg-green-100 text-green-700 border-green-300">
+                               Auto-allocated
+                             </Badge>
+                           )}
+                           {group.title === "Debts" && (
+                             <Badge variant="outline" className="text-xs bg-red-100 text-red-700 border-red-300">
                                Auto-allocated
                              </Badge>
                            )}
@@ -743,7 +813,9 @@ export default function BudgetForm() {
                 {userCategories.map((cat) => {
                   // Check if this is a goal category
                   const isGoalCategory = group.title === "Goals";
+                  const isDebtCategory = group.title === "Debts";
                   const goal = goals.find(g => g.title === cat);
+                  const debt = debts.find(d => d.name === cat);
                   const isEditable = editableGoals.has(cat);
                   
                   return (
@@ -780,6 +852,13 @@ export default function BudgetForm() {
                             )}
                           </div>
                         )}
+                        {isDebtCategory && debt && (
+                          <div className="flex items-center gap-1">
+                            <Badge variant="outline" className="text-xs text-red-600 border-red-300">
+                              Debt
+                            </Badge>
+                          </div>
+                        )}
                       </div>
                       <div className="relative">
                         <Input
@@ -789,10 +868,11 @@ export default function BudgetForm() {
                           className={cn(
                             "pr-8",
                             !isEditing && currentBudget && "opacity-70 cursor-not-allowed",
-                            isGoalCategory && !isEditable && "bg-green-50 border-green-200"
+                            isGoalCategory && !isEditable && "bg-green-50 border-green-200",
+                            isDebtCategory && "bg-red-50 border-red-200"
                           )}
                           placeholder="0.00"
-                          disabled={(!isEditing && currentBudget) || (isGoalCategory && !isEditable)}
+                          disabled={(!isEditing && currentBudget) || (isGoalCategory && !isEditable) || isDebtCategory}
                         />
                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
                           £
@@ -801,6 +881,11 @@ export default function BudgetForm() {
                       {isGoalCategory && goal && (
                         <div className="text-xs text-muted-foreground">
                           Target: £{goal.target.toFixed(2)} | Monthly: £{goal.monthlyContribution.toFixed(2)}
+                        </div>
+                      )}
+                      {isDebtCategory && debt && (
+                        <div className="text-xs text-muted-foreground">
+                          Total: £{debt.totalAmount.toFixed(2)} | Monthly: £{debt.monthlyRepayment.toFixed(2)}
                         </div>
                       )}
                     </div>
@@ -848,26 +933,31 @@ export default function BudgetForm() {
                </CardHeader>
                <CardContent className="space-y-6">
                  {/* Summary Stats */}
-                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                   <div className="bg-primary/5 p-4 rounded-lg">
-                     <div className="text-sm text-muted-foreground">Monthly Income</div>
-                     <div className="text-2xl font-bold text-primary">£{income.toFixed(2)}</div>
+                 <div className="grid grid-cols-4 gap-4">
+                   <div className="text-center p-3 bg-blue-50 rounded-lg">
+                     <p className="text-xs text-muted-foreground">Total Allocated</p>
+                     <p className="text-lg font-bold text-blue-700">£{totalAllocated.toFixed(2)}</p>
                    </div>
-                   <div className="bg-blue-50 p-4 rounded-lg">
-                     <div className="text-sm text-muted-foreground">Total Allocated</div>
-                     <div className="text-2xl font-bold text-blue-600">£{totalAllocated.toFixed(2)}</div>
-                   </div>
-                   <div className="bg-green-50 p-4 rounded-lg">
-                     <div className="text-sm text-muted-foreground">Goal Allocations</div>
-                     <div className="text-2xl font-bold text-green-600">
+                   <div className="text-center p-3 bg-green-50 rounded-lg">
+                     <p className="text-xs text-muted-foreground">Goal Allocations</p>
+                     <p className="text-lg font-bold text-green-700">
                        £{goals.filter(g => g.isActive).reduce((sum, goal) => sum + (amounts[goal.title] || 0), 0).toFixed(2)}
-                     </div>
+                     </p>
                    </div>
-                   <div className={`p-4 rounded-lg ${remaining >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
-                     <div className="text-sm text-muted-foreground">Remaining</div>
-                     <div className={`text-2xl font-bold ${remaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                       £{remaining.toFixed(2)}
+                   {debts.filter(d => d.isActive).length > 0 && (
+                     <div className="text-center p-3 bg-red-50 rounded-lg">
+                       <p className="text-xs text-muted-foreground">Debt Allocations</p>
+                       <p className="text-lg font-bold text-red-700">
+                         £{debts.filter(d => d.isActive).reduce((sum, debt) => sum + (amounts[debt.name] || 0), 0).toFixed(2)}
+                       </p>
                      </div>
+                   )}
+                   <div className={cn(
+                     "text-center p-3 rounded-lg",
+                     debts.filter(d => d.isActive).length > 0 ? "bg-amber-50" : "bg-amber-50 col-span-2"
+                   )}>
+                     <p className="text-xs text-muted-foreground">Remaining</p>
+                     <p className="text-lg font-bold text-amber-700">£{remaining.toFixed(2)}</p>
                    </div>
                  </div>
 

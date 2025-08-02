@@ -13,6 +13,10 @@ export const budgetTemplate: BudgetCategoryGroup[] = [
     categories: [], // Will be populated dynamically from user's goals
   },
   {
+    title: "Debts",
+    categories: [], // Will be populated dynamically from user's active debts
+  },
+  {
     title: "Bills & Essentials",
     categories: [
       "Rent / Mortgage",
