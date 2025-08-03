@@ -1,51 +1,117 @@
 "use client";
 
-import { useFirebaseStore } from "@/lib/store-firebase";
-import { budgetTemplate } from "@/app/utils/template";
 import { useState, useEffect, useMemo } from "react";
-import { v4 as uuidv4 } from "uuid";
+import { useFirebaseStore } from "@/lib/store-firebase";
 import { useAuth } from "@/lib/auth-context";
 import AddCategoryModal from "./AddCategoryModal";
+import CustomCategoryManager from "./CustomCategoryManager";
+import SaveTemplateModal from "./SaveTemplateModal";
+import TemplateSelector from "./TemplateSelector";
 import { motion, Variants } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { 
-  Calendar, 
-  DollarSign, 
-  TrendingUp, 
-  TrendingDown, 
-  Edit3, 
-  Eye, 
-  EyeOff, 
-  Save, 
-  RotateCcw, 
-  Plus,
-  CheckCircle,
-  AlertCircle,
+import {
   Calculator,
+  Calendar,
+  CreditCard,
+  DollarSign,
+  Home,
+  ShoppingBag,
   Target,
   Zap,
   Shield,
-  Home,
+  Plus,
+  Save,
+  RotateCcw,
+  CheckCircle,
+  Edit,
+  Trash2,
+  AlertCircle,
+  TrendingUp,
+  TrendingDown,
   Car,
-  ShoppingBag,
-  Utensils,
   Heart,
+  Plane,
   GraduationCap,
-  Briefcase,
+  Building2,
+  UtensilsCrossed,
+  Gamepad2,
+  BookOpen,
+  Music,
+  Camera,
   Gift,
-  CreditCard
+  Wifi,
+  Phone,
+  Bus,
+  Train,
+  Bike,
+  Footprints,
+  Baby,
+  Dog,
+  Cat,
+  TreePine,
+  Sun,
+  CloudRain,
+  Snowflake,
+  Leaf,
+  Flower2,
+  Gem,
+  Crown,
+  Star,
+  HeartHandshake,
+  HandHeart,
+  PiggyBank,
+  Coins,
+  Banknote,
+  Wallet,
+  CreditCard as CreditCardIcon,
+  Building,
+  Home as HomeIcon,
+  Car as CarIcon,
+  Plane as PlaneIcon,
+  GraduationCap as GraduationCapIcon,
+  Heart as HeartIcon,
+  TreePine as TreePineIcon,
+  Sun as SunIcon,
+  CloudRain as CloudRainIcon,
+  Snowflake as SnowflakeIcon,
+  Leaf as LeafIcon,
+  Flower2 as Flower2Icon,
+  Gem as GemIcon,
+  Crown as CrownIcon,
+  Star as StarIcon,
+  HeartHandshake as HeartHandshakeIcon,
+  HandHeart as HandHeartIcon,
+  PiggyBank as PiggyBankIcon,
+  Coins as CoinsIcon,
+  Banknote as BanknoteIcon,
+  Wallet as WalletIcon,
+  Building as BuildingIcon,
+  Eye,
+  EyeOff,
+  Bookmark,
 } from "lucide-react";
+
+// Category icons mapping
+const CATEGORY_ICONS: { [key: string]: React.ReactNode } = {
+  "Housing": <Home className="h-4 w-4" />,
+  "Transport": <Car className="h-4 w-4" />,
+  "Food": <UtensilsCrossed className="h-4 w-4" />,
+  "Utilities": <Zap className="h-4 w-4" />,
+  "Insurance": <Shield className="h-4 w-4" />,
+  "Savings": <Target className="h-4 w-4" />,
+  "Debts": <CreditCard className="h-4 w-4" />,
+  "Goals": <Target className="h-4 w-4" />,
+  "Other": <Calculator className="h-4 w-4" />,
+};
 
 // Motion variants
 const containerVariants: Variants = {
@@ -53,7 +119,7 @@ const containerVariants: Variants = {
   visible: {
     opacity: 1,
     transition: {
-    staggerChildren: 0.1,
+      staggerChildren: 0.1,
     },
   },
 };
@@ -65,22 +131,6 @@ const itemVariants: Variants = {
     y: 0,
     transition: { type: "spring", stiffness: 200, damping: 25 },
   },
-};
-
-// Category icons mapping
-const CATEGORY_ICONS: { [key: string]: React.ReactNode } = {
-  "Housing": <Home className="h-4 w-4" />,
-  "Transportation": <Car className="h-4 w-4" />,
-  "Food & Dining": <Utensils className="h-4 w-4" />,
-  "Shopping": <ShoppingBag className="h-4 w-4" />,
-  "Healthcare": <Heart className="h-4 w-4" />,
-  "Education": <GraduationCap className="h-4 w-4" />,
-  "Entertainment": <Gift className="h-4 w-4" />,
-  "Utilities": <Zap className="h-4 w-4" />,
-  "Insurance": <Shield className="h-4 w-4" />,
-  "Savings": <Target className="h-4 w-4" />,
-  "Debts": <CreditCard className="h-4 w-4" />,
-  "Other": <Calculator className="h-4 w-4" />,
 };
 
 export default function BudgetForm() {
@@ -98,18 +148,18 @@ export default function BudgetForm() {
   const debts = useFirebaseStore((s) => s.debts);
   const budgets = useFirebaseStore((s) => s.budgets);
   const goals = useFirebaseStore((s) => s.goals);
+  const budgetTemplates = useFirebaseStore((s) => s.budgetTemplates);
   const { user } = useAuth();
 
   // State
-  const [selectedMonth, setSelectedMonth] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [selectedBudget, setSelectedBudget] = useState<string | null>(null);
   const [amounts, setAmounts] = useState<{ [cat: string]: number }>({});
   const [isEditing, setIsEditing] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState<string | null>(null);
-  const [showRemaining, setShowRemaining] = useState(true);
-  const [availableMonthsList, setAvailableMonthsList] = useState<string[]>([]);
   const [editableGoals, setEditableGoals] = useState<Set<string>>(new Set());
+  const [availableMonthsList, setAvailableMonthsList] = useState<string[]>([]);
+  const [showRemaining, setShowRemaining] = useState(false);
+  const [saveTemplateModalOpen, setSaveTemplateModalOpen] = useState(false);
 
   // Get available months for budget selection
   const availableMonths = useMemo(() => {
@@ -124,9 +174,9 @@ export default function BudgetForm() {
     for (let i = 0; i < 12; i++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + i, 1);
       const month = date.toLocaleString("default", {
-      month: "long",
-      year: "numeric",
-    });
+        month: "long",
+        year: "numeric",
+      });
       months.push(month);
     }
     setAvailableMonthsList(months);
@@ -151,8 +201,98 @@ export default function BudgetForm() {
     return budgets.find((b) => b.month === previousMonth);
   }, [budgets, selectedMonth]);
 
-     // Initialize amounts when month changes
-    useEffect(() => {
+  // Get the default template
+  const defaultTemplate = useMemo(() => {
+    return budgetTemplates.find(t => t.isDefault);
+  }, [budgetTemplates]);
+
+  // Organize categories into sections
+  const budgetSections = useMemo(() => {
+    if (!defaultTemplate) return [];
+    
+    // Use sections from template if available, otherwise fall back to hardcoded sections
+    const templateSections = (defaultTemplate as any).sections;
+    
+    if (templateSections && templateSections.length > 0) {
+      // Use template sections with icons
+      return templateSections.map((section: { title: string; categories: string[] }, index: number) => {
+        const icons = [
+          <Home className="h-4 w-4" key="home" />,
+          <Car className="h-4 w-4" key="car" />,
+          <UtensilsCrossed className="h-4 w-4" key="food" />,
+          <Zap className="h-4 w-4" key="utilities" />,
+          <Shield className="h-4 w-4" key="insurance" />,
+          <Target className="h-4 w-4" key="savings" />,
+          <Calculator className="h-4 w-4" key="other" />
+        ];
+        
+        return {
+          ...section,
+          icon: icons[index] || <Calculator className="h-4 w-4" />
+        };
+      });
+    }
+    
+    // Fallback to hardcoded sections if template doesn't have sections
+    const sections = [
+      {
+        title: "Housing",
+        categories: ["Rent/Mortgage", "Council Tax", "Home Insurance", "Maintenance"],
+        icon: <Home className="h-4 w-4" />
+      },
+      {
+        title: "Transport",
+        categories: ["Fuel", "Car Insurance", "Car Tax", "Public Transport", "Parking", "Car Maintenance"],
+        icon: <Car className="h-4 w-4" />
+      },
+      {
+        title: "Food",
+        categories: ["Groceries", "Takeaways", "Restaurants"],
+        icon: <UtensilsCrossed className="h-4 w-4" />
+      },
+      {
+        title: "Utilities",
+        categories: ["Electricity", "Gas", "Water", "Internet", "Phone"],
+        icon: <Zap className="h-4 w-4" />
+      },
+      {
+        title: "Insurance",
+        categories: ["Life Insurance", "Health Insurance", "Pet Insurance"],
+        icon: <Shield className="h-4 w-4" />
+      },
+      {
+        title: "Savings",
+        categories: ["Emergency Fund", "Investments", "Pension"],
+        icon: <Target className="h-4 w-4" />
+      },
+      {
+        title: "Debts",
+        categories: [],
+        icon: <CreditCard className="h-4 w-4" />
+      },
+      {
+        title: "Goals",
+        categories: [],
+        icon: <Target className="h-4 w-4" />
+      },
+      {
+        title: "Other",
+        categories: ["Entertainment", "Clothing", "Healthcare", "Gifts", "Holidays"],
+        icon: <Calculator className="h-4 w-4" />
+      }
+    ];
+
+    // Filter sections to only include categories that exist in the default template
+    const filteredSections = sections.map(section => ({
+      ...section,
+      categories: section.categories.filter(cat => defaultTemplate.categories.includes(cat))
+    })).filter(section => section.categories.length > 0);
+    
+    return filteredSections;
+  }, [defaultTemplate]);
+
+  // Initialize amounts when month changes
+  useEffect(() => {
     if (!selectedMonth) return;
 
     let initialAmounts: { [cat: string]: number } = {};
@@ -186,30 +326,22 @@ export default function BudgetForm() {
             }
           });
         }
-
-        // Automatically allocate goal contributions
-        const activeGoals = goals.filter(g => g.isActive);
-        activeGoals.forEach(goal => {
-          // Set the goal allocation to the monthly contribution
-          initialAmounts[goal.title] = goal.monthlyContribution;
-        });
-        
-        // Automatically allocate debt payments
-        const activeDebtsForAllocation = debts.filter(d => d.isActive);
-        activeDebtsForAllocation.forEach(debt => {
-          // Set the debt allocation to the monthly repayment
-          initialAmounts[debt.name] = debt.monthlyRepayment;
-        });
-        
-        // Log for debugging
-        console.log('Active goals:', activeGoals);
-        console.log('Active debts:', activeDebtsForAllocation);
-        console.log('Initial amounts after goal allocation:', initialAmounts);
       }
-   }
+    }
 
-   setAmounts(initialAmounts);
-  }, [selectedMonth, currentBudget, previousBudget, debts, selectedBudget, budgets, isEditing, goals]);
+    setAmounts(initialAmounts);
+  }, [selectedMonth, selectedBudget, currentBudget, previousBudget, debts]);
+
+  // Auto-load default template when component mounts and no amounts are set
+  useEffect(() => {
+    if (defaultTemplate && Object.keys(amounts).length === 0) {
+      const newAmounts: { [cat: string]: number } = {};
+      defaultTemplate.categories.forEach(category => {
+        newAmounts[category] = 0;
+      });
+      setAmounts(newAmounts);
+    }
+  }, [defaultTemplate, amounts]);
 
   // Ensure goal allocations are properly set when goals change
   useEffect(() => {
@@ -226,6 +358,19 @@ export default function BudgetForm() {
       }
     }
   }, [goals, selectedMonth, currentBudget, selectedBudget]);
+
+  // Show loading state if budget templates are not loaded yet
+  if (budgetTemplates.length === 0 || !defaultTemplate) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Setting up your budget templates...</p>
+          <p className="text-xs text-muted-foreground mt-2">This may take a moment on first login</p>
+        </div>
+      </div>
+    );
+  }
 
   // Derived data
   const allocationsArray = Object.entries(amounts).map(([category, amount]) => ({
@@ -363,53 +508,28 @@ export default function BudgetForm() {
     }
   };
 
-  const handleResetToPrevious = () => {
-    if (previousBudget) {
-      const resetAmounts: { [cat: string]: number } = {};
-      
-      // Reset to debt amounts
-      const activeDebts = debts.filter(d => d.isActive);
-      activeDebts.forEach(debt => {
-        resetAmounts[debt.name] = debt.monthlyRepayment;
-      });
+  const handleResetToPrevious = async () => {
+    if (!previousBudget) return;
 
-      // Add previous month's allocations
+    try {
+      // Reset amounts to previous budget allocations
+      const newAmounts: { [cat: string]: number } = {};
       previousBudget.allocations.forEach(({ category, amount }) => {
-        if (!activeDebts.some(d => d.name === category)) {
-          resetAmounts[category] = amount;
-        }
+        newAmounts[category] = amount;
       });
+      setAmounts(newAmounts);
 
-      setAmounts(resetAmounts);
       toast({
-        title: "Reset Complete",
-        description: "Budget reset to previous month's allocations",
+        title: "Success",
+        description: "Budget reset to previous month's allocations!",
       });
-    }
-  };
-
-  const openAddModal = (section: string) => {
-    setActiveSection(section);
-    setModalOpen(true);
-  };
-
-  const confirmAddCategory = async (name: string) => {
-    if (activeSection) {
-      try {
-        await addCustomCategory(activeSection, name);
-        setModalOpen(false);
-        toast({
-          title: "Success",
-          description: `Category "${name}" added successfully!`,
-        });
-      } catch (error) {
-        console.error('Error adding custom category:', error);
-        toast({
-          title: "Error",
-          description: "Failed to add custom category. Please try again.",
-          variant: "destructive",
-        });
-      }
+    } catch (error) {
+      console.error('Error resetting budget:', error);
+      toast({
+        title: "Error",
+        description: "Failed to reset budget. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -423,6 +543,15 @@ export default function BudgetForm() {
       }
       return newSet;
     });
+  };
+
+  const handleTemplateSelect = (categories: string[]) => {
+    // Clear current amounts and set up new categories
+    const newAmounts: { [cat: string]: number } = {};
+    categories.forEach(category => {
+      newAmounts[category] = 0;
+    });
+    setAmounts(newAmounts);
   };
 
   return (
@@ -449,15 +578,26 @@ export default function BudgetForm() {
                  <SelectTrigger className="w-full">
                    <SelectValue placeholder="Select month for your budget..." />
                  </SelectTrigger>
-                                   <SelectContent>
-                    {availableMonthsList.map((month) => (
-                      <SelectItem key={month} value={month}>
-                        {month}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
+                 <SelectContent>
+                   {availableMonthsList.map((month) => (
+                     <SelectItem key={month} value={month}>
+                       {month}
+                     </SelectItem>
+                   ))}
+                 </SelectContent>
                </Select>
              </div>
+
+             {/* Step 1.5: Template Selection */}
+             {selectedMonth && (
+               <div className="space-y-3">
+                 <Label className="text-base font-semibold">Step 1.5: Load Template (Optional)</Label>
+                 <TemplateSelector 
+                   onTemplateSelect={handleTemplateSelect}
+                   currentAllocations={allocationsArray}
+                 />
+               </div>
+             )}
 
              {/* Step 2: Budget Status & Actions */}
              {selectedMonth && (
@@ -504,7 +644,7 @@ export default function BudgetForm() {
                          size="sm"
                          className="bg-blue-600 text-black hover:bg-blue-700"
                        >
-                         <Edit3 className="h-4 w-4 mr-2" />
+                         <Edit className="h-4 w-4 mr-2" />
                          Edit Existing Budget
                        </Button>
                        <Button
@@ -749,18 +889,18 @@ export default function BudgetForm() {
 
                      <TabsContent value="categories" className="space-y-6">
              <div className="space-y-6">
-        {budgetTemplate.map((group) => {
-          const custom = getCustomCategories(group.title);
-          let allCategories = [...group.categories, ...custom];
+        {budgetSections.map((section: { title: string; categories: string[]; icon: React.ReactNode }) => {
+          const custom = getCustomCategories(section.title);
+          let allCategories = [...section.categories, ...custom];
           
           // Dynamically populate Goals section with user's active goals
-          if (group.title === "Goals") {
+          if (section.title === "Goals") {
             const activeGoals = goals.filter(g => g.isActive).map(g => g.title);
             allCategories = [...activeGoals, ...custom];
           }
           
           // Dynamically populate Debts section with user's active debts
-          if (group.title === "Debts") {
+          if (section.title === "Debts") {
             const activeDebts = debts.filter(d => d.isActive).map(d => d.name);
             allCategories = [...activeDebts, ...custom];
           }
@@ -774,46 +914,44 @@ export default function BudgetForm() {
           const userCategories = allCategories.filter((cat) => !debts.some((d) => d.name === cat));
 
           return (
-                   <Card key={group.title} className={cn(
-                     group.title === "Goals" && "border-green-200 bg-green-50/30",
-                     group.title === "Debts" && "border-red-200 bg-red-50/30"
+                   <Card key={section.title} className={cn(
+                     section.title === "Goals" && "border-green-200 bg-green-50/30",
+                     section.title === "Debts" && "border-red-200 bg-red-50/30"
                    )}>
                      <CardHeader className="pb-4">
                        <div className="flex justify-between items-center">
                          <div className="flex items-center gap-2">
-                           {CATEGORY_ICONS[group.title] || <Calculator className="h-4 w-4" />}
+                           {CATEGORY_ICONS[section.title] || <Calculator className="h-4 w-4" />}
                            <CardTitle className={cn(
                              "text-lg",
-                             group.title === "Goals" && "text-green-700",
-                             group.title === "Debts" && "text-red-700"
-                           )}>{group.title}</CardTitle>
-                           {group.title === "Goals" && (
+                             section.title === "Goals" && "text-green-700",
+                             section.title === "Debts" && "text-red-700"
+                           )}>{section.title}</CardTitle>
+                           {section.title === "Goals" && (
                              <Badge variant="outline" className="text-xs bg-green-100 text-green-700 border-green-300">
                                Auto-allocated
                              </Badge>
                            )}
-                           {group.title === "Debts" && (
+                           {section.title === "Debts" && (
                              <Badge variant="outline" className="text-xs bg-red-100 text-red-700 border-red-300">
                                Auto-allocated
                              </Badge>
                            )}
                          </div>
-                         <Button
-                           onClick={() => openAddModal(group.title)}
-                           size="sm"
-                           variant="outline"
-                         >
-                           <Plus className="h-4 w-4 mr-2" />
-                           Add
-                         </Button>
-              </div>
+                       </div>
                      </CardHeader>
                      <CardContent className="space-y-4">
-                       <div className="grid grid-cols-2 gap-4">
+                       {/* Custom Category Manager */}
+                         <CustomCategoryManager 
+                           section={section.title} 
+                           title="Custom Categories" 
+                         />
+                         
+                         <div className="grid grid-cols-2 gap-4">
                 {userCategories.map((cat) => {
                   // Check if this is a goal category
-                  const isGoalCategory = group.title === "Goals";
-                  const isDebtCategory = group.title === "Debts";
+                  const isGoalCategory = section.title === "Goals";
+                  const isDebtCategory = section.title === "Debts";
                   const goal = goals.find(g => g.title === cat);
                   const debt = debts.find(d => d.name === cat);
                   const isEditable = editableGoals.has(cat);
@@ -872,7 +1010,7 @@ export default function BudgetForm() {
                             isDebtCategory && "bg-red-50 border-red-200"
                           )}
                           placeholder="0.00"
-                          disabled={(!isEditing && currentBudget) || (isGoalCategory && !isEditable) || isDebtCategory}
+                          disabled={(!isEditing && !!currentBudget) || (isGoalCategory && !isEditable) || isDebtCategory}
                         />
                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
                           £
@@ -1051,6 +1189,14 @@ export default function BudgetForm() {
       {/* Action Buttons */}
       <motion.div variants={itemVariants} className="mt-8 flex justify-end gap-4">
         <Button
+          onClick={() => setSaveTemplateModalOpen(true)}
+          variant="outline"
+          disabled={Object.keys(amounts).length === 0}
+        >
+          <Bookmark className="h-4 w-4 mr-2" />
+          Save as Template
+        </Button>
+        <Button
           onClick={handleResetToPrevious}
           variant="outline"
           disabled={!previousBudget}
@@ -1060,7 +1206,7 @@ export default function BudgetForm() {
         </Button>
         <Button
           onClick={handleSaveBudget}
-          disabled={!selectedMonth || (currentBudget && !isEditing)}
+          disabled={!selectedMonth || (!!currentBudget && !isEditing)}
           className="bg-primary hover:bg-primary/90"
         >
           <Save className="h-4 w-4 mr-2" />
@@ -1068,12 +1214,12 @@ export default function BudgetForm() {
         </Button>
       </motion.div>
 
-      {/* Modal */}
-      <AddCategoryModal
-        open={modalOpen}
-        section={activeSection ?? ""}
-        onClose={() => setModalOpen(false)}
-        onConfirm={confirmAddCategory}
+      {/* Save Template Modal */}
+      <SaveTemplateModal
+        open={saveTemplateModalOpen}
+        onClose={() => setSaveTemplateModalOpen(false)}
+        currentAllocations={allocationsArray}
+        currentMonth={selectedMonth}
       />
     </motion.div>
   );

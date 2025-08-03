@@ -211,12 +211,143 @@ export const userService = {
   // Initialize user data structure (called when user first signs up)
   async initializeUserData(user: User): Promise<void> {
     try {
-      // Create user profile only - no sample data
       await this.createUserProfile(user);
-
-      console.log('User profile created successfully for:', user.uid);
+      await this.initializeDefaultBudgetTemplates(user.uid);
     } catch (error) {
       console.error('Error initializing user data:', error);
+      throw error;
+    }
+  },
+
+  async initializeDefaultBudgetTemplates(userId: string): Promise<void> {
+    try {
+      console.log('Initializing default budget templates for user:', userId);
+      
+      // Check if templates already exist for this user
+      const existingTemplates = await firestoreUtils.getWhere(COLLECTIONS.BUDGET_TEMPLATES, "userId", "==", userId);
+      
+      if (existingTemplates.length === 0) {
+        // Create a single default template with all standard categories
+        const defaultCategories = [
+          // Housing
+          "Rent/Mortgage", "Council Tax", "Home Insurance", "Maintenance",
+          // Transport
+          "Fuel", "Car Insurance", "Car Tax", "Public Transport", "Parking", "Car Maintenance",
+          // Food
+          "Groceries", "Takeaways", "Restaurants",
+          // Utilities
+          "Electricity", "Gas", "Water", "Internet", "Phone",
+          // Insurance
+          "Life Insurance", "Health Insurance", "Pet Insurance",
+          // Savings
+          "Emergency Fund", "Investments", "Pension",
+          // Other
+          "Entertainment", "Clothing", "Healthcare", "Gifts", "Holidays"
+        ];
+
+        // Create the default template
+        await firestoreUtils.create(COLLECTIONS.BUDGET_TEMPLATES, {
+          userId,
+          title: "Default Budget Template",
+          categories: defaultCategories,
+          isDefault: true,
+          sections: [
+            {
+              title: "Housing",
+              categories: ["Rent/Mortgage", "Council Tax", "Home Insurance", "Maintenance"]
+            },
+            {
+              title: "Transport",
+              categories: ["Fuel", "Car Insurance", "Car Tax", "Public Transport", "Parking", "Car Maintenance"]
+            },
+            {
+              title: "Food",
+              categories: ["Groceries", "Takeaways", "Restaurants"]
+            },
+            {
+              title: "Utilities",
+              categories: ["Electricity", "Gas", "Water", "Internet", "Phone"]
+            },
+            {
+              title: "Insurance",
+              categories: ["Life Insurance", "Health Insurance", "Pet Insurance"]
+            },
+            {
+              title: "Savings",
+              categories: ["Emergency Fund", "Investments", "Pension"]
+            },
+            {
+              title: "Other",
+              categories: ["Entertainment", "Clothing", "Healthcare", "Gifts", "Holidays"]
+            }
+          ]
+        });
+
+        console.log('Default budget template created successfully for user:', userId);
+      } else {
+        // Check if we need to migrate existing templates
+        const defaultTemplate = existingTemplates.find(t => (t as any).isDefault);
+        if (defaultTemplate && (!(defaultTemplate as any).categories || (defaultTemplate as any).categories.length < 20)) {
+          // Migrate to new structure
+          console.log('Migrating existing template to new structure for user:', userId);
+          const defaultCategories = [
+            // Housing
+            "Rent/Mortgage", "Council Tax", "Home Insurance", "Maintenance",
+            // Transport
+            "Fuel", "Car Insurance", "Car Tax", "Public Transport", "Parking", "Car Maintenance",
+            // Food
+            "Groceries", "Takeaways", "Restaurants",
+            // Utilities
+            "Electricity", "Gas", "Water", "Internet", "Phone",
+            // Insurance
+            "Life Insurance", "Health Insurance", "Pet Insurance",
+            // Savings
+            "Emergency Fund", "Investments", "Pension",
+            // Other
+            "Entertainment", "Clothing", "Healthcare", "Gifts", "Holidays"
+          ];
+          
+          await firestoreUtils.update(COLLECTIONS.BUDGET_TEMPLATES, (defaultTemplate as any).id, {
+            categories: defaultCategories,
+            sections: [
+              {
+                title: "Housing",
+                categories: ["Rent/Mortgage", "Council Tax", "Home Insurance", "Maintenance"]
+              },
+              {
+                title: "Transport",
+                categories: ["Fuel", "Car Insurance", "Car Tax", "Public Transport", "Parking", "Car Maintenance"]
+              },
+              {
+                title: "Food",
+                categories: ["Groceries", "Takeaways", "Restaurants"]
+              },
+              {
+                title: "Utilities",
+                categories: ["Electricity", "Gas", "Water", "Internet", "Phone"]
+              },
+              {
+                title: "Insurance",
+                categories: ["Life Insurance", "Health Insurance", "Pet Insurance"]
+              },
+              {
+                title: "Savings",
+                categories: ["Emergency Fund", "Investments", "Pension"]
+              },
+              {
+                title: "Other",
+                categories: ["Entertainment", "Clothing", "Healthcare", "Gifts", "Holidays"]
+              }
+            ]
+          });
+          
+          console.log('Template migrated successfully for user:', userId);
+        } else {
+          console.log('Budget templates already exist for user:', userId);
+        }
+      }
+    } catch (error) {
+      console.error('Error creating default budget templates:', error);
       throw error;
     }
   }

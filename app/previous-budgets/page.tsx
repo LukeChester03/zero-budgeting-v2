@@ -55,7 +55,7 @@ const itemVariants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { type: "spring", stiffness: 200, damping: 25 },
+    transition: { type: "spring" as const, stiffness: 200, damping: 25 },
   },
 };
 
@@ -257,39 +257,81 @@ export default function PreviousBudgetsPage() {
             variants={containerVariants}
             initial="hidden"
             animate="visible"
-            className="max-w-2xl mx-auto text-center"
+            className="max-w-2xl mx-auto"
           >
-            <motion.div variants={itemVariants} className="mb-8">
-              <div className="flex items-center justify-center gap-3 mb-6">
-                <div className="p-3 bg-primary/10 rounded-full">
-                  <History className="h-8 w-8 text-primary" />
-                </div>
-                <h1 className="text-4xl md:text-6xl font-bold text-primary">
-                  Budget History
-                </h1>
-              </div>
-              <p className="text-xl text-muted-foreground">
-                Track your financial journey and learn from your past budgets
-              </p>
-            </motion.div>
-
+            {/* Empty State Card */}
             <motion.div variants={itemVariants}>
-              <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
+              <Card className="bg-background/80 backdrop-blur-sm border-primary/20 shadow-xl">
                 <CardContent className="p-12">
-                  <div className="text-center space-y-6">
-                    <div className="text-6xl mb-4">📊</div>
-                    <h2 className="text-2xl font-bold">No Budget History Yet</h2>
-                    <p className="text-muted-foreground">
-                      Create your first budget to start building your financial history and insights.
-                    </p>
-                    <Button
-                      onClick={() => router.push("/budget")}
-                      size="lg"
-                      className="bg-primary hover:bg-primary/90"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Your First Budget
-                    </Button>
+                  <div className="text-center space-y-8">
+                    {/* Icon and Title */}
+                    <div className="space-y-4">
+                      <div className="mx-auto w-24 h-24 bg-gradient-to-br from-primary/10 to-primary/5 rounded-full flex items-center justify-center">
+                        <BarChart3 className="h-12 w-12 text-primary" />
+                      </div>
+                      <div>
+                        <h2 className="text-3xl font-bold text-foreground mb-2">
+                          Start Your Financial Journey
+                        </h2>
+                        <p className="text-muted-foreground text-lg max-w-md mx-auto">
+                          Create your first budget to begin building your financial history and gain valuable insights into your spending patterns.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Benefits Grid */}
+                    <div className="grid md:grid-cols-3 gap-6 mt-8">
+                      <Card className="bg-muted/30 border-muted">
+                        <CardContent className="p-6 text-center">
+                          <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <TrendingUp className="h-6 w-6 text-primary" />
+                          </div>
+                          <h3 className="font-semibold mb-2">Track Progress</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Monitor your savings growth and debt reduction over time
+                          </p>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="bg-muted/30 border-muted">
+                        <CardContent className="p-6 text-center">
+                          <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <PieChart className="h-6 w-6 text-primary" />
+                          </div>
+                          <h3 className="font-semibold mb-2">Gain Insights</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Analyze spending patterns and identify areas for improvement
+                          </p>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="bg-muted/30 border-muted">
+                        <CardContent className="p-6 text-center">
+                          <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Target className="h-6 w-6 text-primary" />
+                          </div>
+                          <h3 className="font-semibold mb-2">Set Goals</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Create and track financial goals with detailed progress metrics
+                          </p>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Call to Action */}
+                    <div className="space-y-4 pt-6">
+                      <Button
+                        onClick={() => router.push("/budget")}
+                        size="lg"
+                        className="bg-primary hover:bg-primary/90 text-lg px-8 py-6 h-auto"
+                      >
+                        <Plus className="h-5 w-5 mr-3" />
+                        Create Your First Budget
+                      </Button>
+                      <p className="text-sm text-muted-foreground">
+                        It only takes a few minutes to set up your first budget
+                      </p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

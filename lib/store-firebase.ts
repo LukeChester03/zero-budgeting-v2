@@ -54,6 +54,16 @@ export interface Goal {
   updatedAt?: any;
 }
 
+export interface BudgetTemplate {
+  id: string;
+  userId: string;
+  title: string;
+  categories: string[];
+  isDefault: boolean;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
 interface FirebaseStore {
   // Auth state
   user: User | null;
@@ -65,6 +75,7 @@ interface FirebaseStore {
   budgets: Budget[];
   debts: Debt[];
   goals: Goal[];
+  budgetTemplates: BudgetTemplate[];
   income: number;
   isEarning: boolean;
   customCategoriesBySection: { [section: string]: string[] };
@@ -74,6 +85,7 @@ interface FirebaseStore {
   unsubscribeDebts: (() => void) | null;
   unsubscribeGoals: (() => void) | null;
   unsubscribeCustomCategories: (() => void) | null;
+  unsubscribeBudgetTemplates: (() => void) | null;
   
   // Actions
   setUser: (user: User | null) => Promise<void>;
@@ -99,6 +111,12 @@ interface FirebaseStore {
   updateGoal: (id: string, goal: Partial<Goal>) => Promise<void>;
   deleteGoal: (id: string) => Promise<void>;
   
+  // Budget Template actions
+  addBudgetTemplate: (template: Omit<BudgetTemplate, 'id' | 'userId'>) => Promise<void>;
+  updateBudgetTemplate: (id: string, template: Partial<BudgetTemplate>) => Promise<void>;
+  deleteBudgetTemplate: (id: string) => Promise<void>;
+  getBudgetTemplates: () => BudgetTemplate[];
+  
   // Computed values
   getTotalSaved: () => number;
   getTotalMonthlyDebtRepayments: () => number;
@@ -106,7 +124,8 @@ interface FirebaseStore {
   getBudgetTotal: (allocations: Allocation[]) => number;
   getBudgetRemaining: (allocations: Allocation[], income: number) => number;
   getCustomCategories: (section: string) => string[];
-  addCustomCategory: (section: string, name: string) => void;
+  addCustomCategory: (section: string, name: string) => Promise<void>;
+  removeCustomCategory: (section: string, name: string) => Promise<void>;
   getSavedAmountForGoal: (goalTitle: string) => number;
   allocateGoalContributions: (budget: Omit<Budget, 'id' | 'userId'>) => Promise<void>;
   allocateDebtPayments: (budget: Omit<Budget, 'id' | 'userId'>) => Promise<void>;
@@ -127,6 +146,7 @@ export const useFirebaseStore = create<FirebaseStore>()(
       budgets: [],
       debts: [],
       goals: [],
+      budgetTemplates: [],
       income: 0,
       isEarning: true,
       customCategoriesBySection: {},
@@ -134,6 +154,7 @@ export const useFirebaseStore = create<FirebaseStore>()(
       unsubscribeDebts: null,
       unsubscribeGoals: null,
       unsubscribeCustomCategories: null,
+      unsubscribeBudgetTemplates: null,
 
       // Auth actions
       setUser: async (user) => {
@@ -174,6 +195,14 @@ export const useFirebaseStore = create<FirebaseStore>()(
                 income: 0,
                 isEarning: true
               });
+            }
+            
+            // Ensure default budget templates exist
+            try {
+              await userService.initializeDefaultBudgetTemplates(user.uid);
+              console.log('Default budget templates ensured for user:', user.uid);
+            } catch (templateError) {
+              console.error('Error ensuring default budget templates:', templateError);
             }
             
             // Add a delay to ensure user is fully authenticated before initializing listeners
@@ -316,6 +345,31 @@ export const useFirebaseStore = create<FirebaseStore>()(
         await firestoreUtils.delete(COLLECTIONS.GOALS, id);
       },
 
+      // Budget Template actions
+      addBudgetTemplate: async (template) => {
+        const { user } = get();
+        if (!user) throw new Error("User not authenticated");
+
+        const templateData = {
+          ...template,
+          userId: user.uid
+        };
+
+        await firestoreUtils.create(COLLECTIONS.BUDGET_TEMPLATES, templateData);
+      },
+
+      updateBudgetTemplate: async (id, template) => {
+        await firestoreUtils.update(COLLECTIONS.BUDGET_TEMPLATES, id, template);
+      },
+
+      deleteBudgetTemplate: async (id) => {
+        await firestoreUtils.delete(COLLECTIONS.BUDGET_TEMPLATES, id);
+      },
+
+      getBudgetTemplates: () => {
+        return get().budgetTemplates;
+      },
+
       // Computed values
       getTotalSaved: () => {
         const { budgets } = get();
@@ -366,7 +420,7 @@ export const useFirebaseStore = create<FirebaseStore>()(
       },
 
       addCustomCategory: async (section, name) => {
-        const { user, customCategoriesBySection } = get();
+        const { user, customCategoriesBySection, budgetTemplates } = get();
         if (!user) throw new Error("User not authenticated");
         
         const existingCategories = customCategoriesBySection[section] || [];
@@ -381,7 +435,7 @@ export const useFirebaseStore = create<FirebaseStore>()(
             }
           });
           
-          // Save to Firebase
+          // Save to Firebase custom categories
           try {
             await firestoreUtils.update(COLLECTIONS.CUSTOM_CATEGORIES, user.uid, {
               categories: {
@@ -398,6 +452,61 @@ export const useFirebaseStore = create<FirebaseStore>()(
               }
             });
           }
+          
+          // Update budget template for this section
+          const existingTemplate = budgetTemplates.find(t => t.title === section);
+          if (existingTemplate) {
+            // Update existing template
+            await firestoreUtils.update(COLLECTIONS.BUDGET_TEMPLATES, existingTemplate.id, {
+              categories: [...existingTemplate.categories, name]
+            });
+          } else {
+            // Create new template for this section
+            await firestoreUtils.create(COLLECTIONS.BUDGET_TEMPLATES, {
+              userId: user.uid,
+              title: section,
+              categories: [name],
+              isDefault: false
+            });
+          }
+        }
+      },
+
+      removeCustomCategory: async (section, name) => {
+        const { user, customCategoriesBySection, budgetTemplates } = get();
+        if (!user) throw new Error("User not authenticated");
+        
+        const existingCategories = customCategoriesBySection[section] || [];
+        const updatedCategories = existingCategories.filter(cat => cat !== name);
+        
+        // Update local state
+        set({
+          customCategoriesBySection: {
+            ...customCategoriesBySection,
+            [section]: updatedCategories
+          }
+        });
+        
+        // Save to Firebase custom categories
+        try {
+          await firestoreUtils.update(COLLECTIONS.CUSTOM_CATEGORIES, user.uid, {
+            categories: {
+              ...customCategoriesBySection,
+              [section]: updatedCategories
+            }
+          });
+        } catch (error) {
+          console.error('Error removing custom category:', error);
+          throw error;
+        }
+        
+        // Update budget template for this section
+        const existingTemplate = budgetTemplates.find(t => t.title === section);
+        if (existingTemplate) {
+          const updatedTemplateCategories = existingTemplate.categories.filter(cat => cat !== name);
+          await firestoreUtils.update(COLLECTIONS.BUDGET_TEMPLATES, existingTemplate.id, {
+            categories: updatedTemplateCategories
+          });
         }
       },
 
@@ -542,27 +651,37 @@ export const useFirebaseStore = create<FirebaseStore>()(
           user.uid
         );
 
+        // Subscribe to budget templates
+        const unsubscribeBudgetTemplates = firestoreUtils.subscribe<BudgetTemplate>(
+          COLLECTIONS.BUDGET_TEMPLATES,
+          (templates) => set({ budgetTemplates: templates }),
+          user.uid
+        );
+
         set({
           unsubscribeBudget,
           unsubscribeDebts,
           unsubscribeGoals,
-          unsubscribeCustomCategories
+          unsubscribeCustomCategories,
+          unsubscribeBudgetTemplates
         });
       },
 
       cleanupFirebaseListeners: () => {
-        const { unsubscribeBudget, unsubscribeDebts, unsubscribeGoals, unsubscribeCustomCategories } = get();
+        const { unsubscribeBudget, unsubscribeDebts, unsubscribeGoals, unsubscribeCustomCategories, unsubscribeBudgetTemplates } = get();
         
         if (unsubscribeBudget) unsubscribeBudget();
         if (unsubscribeDebts) unsubscribeDebts();
         if (unsubscribeGoals) unsubscribeGoals();
         if (unsubscribeCustomCategories) unsubscribeCustomCategories();
+        if (unsubscribeBudgetTemplates) unsubscribeBudgetTemplates();
         
         set({
           unsubscribeBudget: null,
           unsubscribeDebts: null,
           unsubscribeGoals: null,
-          unsubscribeCustomCategories: null
+          unsubscribeCustomCategories: null,
+          unsubscribeBudgetTemplates: null
         });
       }
     }),

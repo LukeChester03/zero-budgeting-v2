@@ -21,7 +21,8 @@ export const COLLECTIONS = {
   DEBTS: "debts", 
   GOALS: "goals",
   USERS: "users",
-  CUSTOM_CATEGORIES: "customCategories"
+  CUSTOM_CATEGORIES: "customCategories",
+  BUDGET_TEMPLATES: "budgetTemplates"
 } as const;
 
 // Generic CRUD operations

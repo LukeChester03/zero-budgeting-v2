@@ -83,8 +83,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const existingProfile = await userService.getUserProfile(userCredential.user.uid);
         if (!existingProfile) {
           console.log('AuthContext: No user profile found for email sign-in, creating one...');
-          await userService.createUserProfile(userCredential.user);
-          console.log('AuthContext: User profile created for email sign-in');
+          await userService.initializeUserData(userCredential.user);
+          console.log('AuthContext: User profile and data created for email sign-in');
         } else {
           console.log('AuthContext: Existing profile found for email sign-in');
         }
@@ -121,8 +121,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Send email verification
       await sendEmailVerification(userCredential.user);
 
-      // Create user profile in database (user is now authenticated)
-      await userService.createUserProfile(userCredential.user);
+      // Create user profile and initialize data in database (user is now authenticated)
+      await userService.initializeUserData(userCredential.user);
       
       // Sign out the user until they verify their email
       await auth.signOut();
@@ -159,8 +159,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!existingProfile) {
           console.log('No existing profile found, creating new profile...');
           // User profile doesn't exist, create it
-          await userService.createUserProfile(userCredential.user);
-          console.log('User profile created for Google sign-in');
+          await userService.initializeUserData(userCredential.user);
+          console.log('User profile and data created for Google sign-in');
         } else {
           console.log('Existing profile found for Google sign-in');
         }

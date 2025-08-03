@@ -170,19 +170,7 @@ export default function Home() {
                 </CardContent>
               </Card>
 
-              <Card className="group hover:shadow-lg transition-all duration-300">
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="p-3 bg-purple-500/10 rounded-xl">
-                      <BarChart3 className="h-8 w-8 text-purple-500" />
-                    </div>
-                    <h3 className="font-semibold text-lg">Financial Analytics</h3>
-                  </div>
-                  <p className="text-muted-foreground">
-                    Get detailed insights into your spending patterns and financial health with comprehensive analytics.
-                  </p>
-                </CardContent>
-              </Card>
+
 
               <Card className="group hover:shadow-lg transition-all duration-300">
                 <CardContent className="p-6">
@@ -550,24 +538,6 @@ export default function Home() {
                     <Badge variant="outline">{budgets.length} records</Badge>
                   </div>
                   <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-purple-500 transition-colors" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer">
-              <CardContent className="p-6" onClick={handleViewAnalysis}>
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-indigo-500/10 rounded-xl group-hover:bg-indigo-500/20 transition-colors">
-                    <Target className="h-8 w-8 text-indigo-500" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-lg mb-1">Financial Analysis</h3>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Detailed insights and recommendations
-                    </p>
-                    <Badge variant="outline">Analytics</Badge>
-                  </div>
-                  <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-indigo-500 transition-colors" />
                 </div>
               </CardContent>
             </Card>
