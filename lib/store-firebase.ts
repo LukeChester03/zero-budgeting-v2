@@ -98,7 +98,7 @@ interface FirebaseStore {
   saveIncome: (income: number, isEarning: boolean) => Promise<void>;
   
   // Budget actions
-  addBudget: (budget: Omit<Budget, 'id' | 'userId'>) => Promise<void>;
+  addBudget: (budget: Omit<Budget, 'id' | 'userId'>) => Promise<{ id: string }>;
   updateBudget: (id: string, budget: Partial<Budget>) => Promise<void>;
   deleteBudget: (id: string) => Promise<void>;
   
@@ -280,7 +280,8 @@ export const useFirebaseStore = create<FirebaseStore>()(
           userId: user.uid
         };
         
-        await firestoreUtils.create(COLLECTIONS.BUDGETS, budgetData);
+        const budgetId = await firestoreUtils.create(COLLECTIONS.BUDGETS, budgetData);
+        return { id: budgetId };
       },
 
       updateBudget: async (id, budget) => {

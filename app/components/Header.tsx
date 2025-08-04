@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth-context";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, Settings, LogOut, Shield } from "lucide-react";
+import { User, Settings, LogOut, Shield, Menu, X } from "lucide-react";
 import AuthModal from "./AuthModal";
 
 // Entry animation for header
@@ -24,6 +24,7 @@ export default function Header() {
   const { user, isLoading, signOut } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navItems = [
     { label: "Home", path: "/" },
@@ -59,21 +60,21 @@ export default function Header() {
       animate="visible"
       className="bg-background border-b border-border shadow-sm sticky top-0 z-50"
     >
-      <div className="max-w-7xl mx-auto px-6 md:px-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo and Brand */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4">
             <div className="flex items-center space-x-2">
-              <FaMoneyBillWave className="text-3xl text-primary" aria-hidden="true" />
-              <span className="text-xl font-bold text-foreground">Zero Budget</span>
+              <FaMoneyBillWave className="text-2xl sm:text-3xl text-primary" aria-hidden="true" />
+              <span className="text-lg sm:text-xl font-bold text-foreground">Zero Budget</span>
             </div>
-            <Badge variant="secondary" className="hidden sm:inline-flex">
+            <Badge variant="secondary" className="hidden sm:inline-flex text-xs">
               Beta
             </Badge>
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-6">
+          <nav className="hidden lg:flex items-center space-x-6">
             {user && (
               <NavigationMenu>
                 <NavigationMenuList>
@@ -92,7 +93,7 @@ export default function Header() {
           </nav>
 
           {/* User Menu / Auth */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4">
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -134,33 +135,135 @@ export default function Header() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-                         ) : (
-               <Button 
-                 variant="outline" 
-                 size="sm"
-                 onClick={() => setIsAuthModalOpen(true)}
-                 disabled={isLoading}
-               >
-                 {isLoading ? "Loading..." : "Sign In"}
-               </Button>
-             )}
+            ) : (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setIsAuthModalOpen(true)}
+                disabled={isLoading}
+                className="hidden sm:inline-flex"
+              >
+                {isLoading ? "Loading..." : "Sign In"}
+              </Button>
+            )}
             
             {/* Mobile Menu Button */}
-            <div className="md:hidden">
-              <Button variant="ghost" size="sm">
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
+            <div className="lg:hidden">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="p-2"
+              >
+                {isMobileMenuOpen ? (
+                  <X className="h-5 w-5" />
+                ) : (
+                  <Menu className="h-5 w-5" />
+                )}
               </Button>
             </div>
           </div>
-                 </div>
-       </div>
-       
-       <AuthModal 
-         isOpen={isAuthModalOpen}
-         onClose={() => setIsAuthModalOpen(false)}
-       />
-     </motion.header>
-   );
- }
+        </div>
+      </div>
+
+      {/* Mobile Navigation Menu */}
+      {isMobileMenuOpen && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          className="lg:hidden border-t border-border bg-background"
+        >
+          <div className="px-4 py-4 space-y-3">
+            {user ? (
+              <>
+                {/* User Info */}
+                <div className="flex items-center space-x-3 p-3 bg-muted/30 rounded-lg">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={user.photoURL || undefined} alt={user.displayName || user.email || "User"} />
+                    <AvatarFallback>{getUserInitials(user)}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{user.displayName || "User"}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                  </div>
+                </div>
+
+                {/* Navigation Items */}
+                <nav className="space-y-1">
+                  {navItems.map(({ label, path }) => (
+                    <NavItem
+                      key={path}
+                      href={path}
+                      className="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-muted/50 transition-colors"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      {label}
+                    </NavItem>
+                  ))}
+                </nav>
+
+                {/* Mobile User Actions */}
+                <div className="pt-3 border-t border-border">
+                  <div className="space-y-1">
+                    <NavItem
+                      href="/profile"
+                      className="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-muted/50 transition-colors"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <User className="mr-3 h-4 w-4" />
+                      Profile
+                    </NavItem>
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start px-3 py-2 h-auto"
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        // Add settings functionality
+                      }}
+                    >
+                      <Settings className="mr-3 h-4 w-4" />
+                      Settings
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start px-3 py-2 h-auto text-destructive hover:text-destructive"
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        handleLogout();
+                      }}
+                      disabled={isLoggingOut}
+                    >
+                      <LogOut className="mr-3 h-4 w-4" />
+                      {isLoggingOut ? "Signing out..." : "Sign out"}
+                    </Button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground px-3">Sign in to access your budgets</p>
+                <Button 
+                  variant="default" 
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    setIsAuthModalOpen(true);
+                  }}
+                  disabled={isLoading}
+                  className="w-full"
+                >
+                  {isLoading ? "Loading..." : "Sign In"}
+                </Button>
+              </div>
+            )}
+          </div>
+        </motion.div>
+      )}
+      
+      <AuthModal 
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
+    </motion.header>
+  );
+}

@@ -171,210 +171,193 @@ export default function MonthlyIncomeInput() {
   }
 
   return (
-    <>
-      {/* Success Alert */}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+            </div>
+            Monthly Income
+          </CardTitle>
+          <CardDescription className="text-sm sm:text-base">
+            Your monthly income after tax is used to calculate budget allocations and track your financial progress
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 sm:space-y-6">
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {!isEditing && (storeIncome > 0 || !storeIsEarning) ? (
+            <div className="space-y-4">
+              {storeIsEarning ? (
+                <div className="flex items-center justify-between p-3 sm:p-4 bg-muted/30 rounded-lg">
+                  <Label className="text-base sm:text-lg font-medium">Current Monthly Income:</Label>
+                  <span className="text-2xl sm:text-3xl font-bold text-primary">
+                    {formatCurrency(storeIncome)}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between p-3 sm:p-4 bg-muted/30 rounded-lg">
+                  <Label className="text-base sm:text-lg font-medium">Income Status:</Label>
+                  <span className="text-base sm:text-lg font-medium text-muted-foreground">
+                    Not currently earning
+                  </span>
+                </div>
+              )}
+              <Button onClick={handleEdit} variant="outline" className="w-full h-10 sm:h-12 text-base sm:text-lg">
+                Edit Income
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4 sm:space-y-6">
+              {/* Income Type Selection */}
+              <div className="space-y-3">
+                <Label className="text-base sm:text-lg font-medium">Are you currently earning income?</Label>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button
+                    variant={!isNotEarning ? "default" : "outline"}
+                    onClick={handleEarning}
+                    className="flex-1 h-10 sm:h-12"
+                  >
+                    Yes, I am earning
+                  </Button>
+                  <Button
+                    variant={isNotEarning ? "default" : "outline"}
+                    onClick={handleNotEarning}
+                    className="flex-1 h-10 sm:h-12"
+                  >
+                    I am not currently earning
+                  </Button>
+                </div>
+              </div>
+
+              {/* Income Input (only show if earning) */}
+              {!isNotEarning && (
+                <div className="space-y-3">
+                  <Label htmlFor="income" className="text-base sm:text-lg font-medium">
+                    Monthly Income After Tax
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-base sm:text-lg">£</span>
+                    <Input
+                      id="income"
+                      type="number"
+                      placeholder="0.00"
+                      value={income}
+                      onChange={(e) => setIncome(e.target.value)}
+                      className="pl-8 sm:pl-12 h-10 sm:h-12 text-base sm:text-lg"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button 
+                  onClick={handleSave} 
+                  className="flex-1 h-10 sm:h-12 text-base sm:text-lg"
+                  disabled={isSaving || (!isNotEarning && !income.trim())}
+                >
+                  {isSaving ? (
+                    <>
+                      <div className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+                      Save Income
+                    </>
+                  )}
+                </Button>
+                <Button 
+                  onClick={handleCancel} 
+                  variant="outline" 
+                  className="flex-1 h-10 sm:h-12 text-base sm:text-lg"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Success Notification */}
       {showSuccess && (
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-6"
+          exit={{ opacity: 0, y: -20 }}
+          className="fixed top-4 right-4 z-50"
         >
-          <Alert className="border-green-200 bg-green-50 text-green-800">
+          <Alert className="border-green-200 bg-green-50 text-green-800 shadow-lg">
             <CheckCircle className="h-4 w-4 text-green-600" />
-            <AlertDescription>Income saved successfully!</AlertDescription>
+            <AlertDescription className="font-medium">
+              Income saved successfully!
+            </AlertDescription>
           </Alert>
         </motion.div>
       )}
 
-      {/* Main Income Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="mb-8"
-      >
-        <Card className="shadow-lg border-2 border-primary/10 hover:border-primary/20 transition-all duration-300">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-3 text-2xl">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <DollarSign className="h-6 w-6 text-primary" />
-              </div>
-              Monthly Income
-            </CardTitle>
-            <CardDescription className="text-base">
-              Your monthly income after tax is used to calculate budget allocations and track your financial progress
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            {!isEditing && (storeIncome > 0 || !storeIsEarning) ? (
-              <div className="space-y-4">
-                {storeIsEarning ? (
-                  <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-                    <Label className="text-lg font-medium">Current Monthly Income:</Label>
-                    <span className="text-3xl font-bold text-primary">
-                      {formatCurrency(storeIncome)}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-                    <Label className="text-lg font-medium">Income Status:</Label>
-                    <span className="text-lg font-medium text-muted-foreground">
-                      Not currently earning
-                    </span>
-                  </div>
-                )}
-                <Button onClick={handleEdit} variant="outline" className="w-full h-12 text-lg">
-                  Edit Income
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {/* Income Type Selection */}
-                <div className="space-y-3">
-                  <Label className="text-lg font-medium">Are you currently earning income?</Label>
-                  <div className="flex gap-3">
-                    <Button
-                      variant={!isNotEarning ? "default" : "outline"}
-                      onClick={handleEarning}
-                      className="flex-1 h-12"
-                    >
-                      Yes, I am earning
-                    </Button>
-                    <Button
-                      variant={isNotEarning ? "default" : "outline"}
-                      onClick={handleNotEarning}
-                      className="flex-1 h-12"
-                    >
-                      I am not currently earning
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Income Input (only show if earning) */}
-                {!isNotEarning && (
-                  <div className="space-y-3">
-                    <Label htmlFor="income" className="text-lg font-medium">
-                      Monthly Income After Tax
-                    </Label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-4 text-muted-foreground text-lg">£</span>
-                      <Input
-                        id="income"
-                        type="number"
-                        placeholder="0.00"
-                        value={income}
-                        onChange={(e) => setIncome(e.target.value)}
-                        className="pl-12 h-12 text-lg"
-                        min="0"
-                        step="0.01"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Action Buttons */}
-                <div className="flex gap-3">
-                  <Button 
-                    onClick={handleSave} 
-                    className="flex-1 h-12 text-lg"
-                    disabled={isSaving || (!isNotEarning && !income.trim())}
-                  >
-                    {isSaving ? (
-                      <>
-                        <div className="mr-2 h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="mr-2 h-5 w-5" />
-                        Save Income
-                      </>
-                    )}
-                  </Button>
-                  {storeIncome > 0 && (
-                    <Button onClick={handleCancel} variant="outline" className="h-12 text-lg">
-                      Cancel
-                    </Button>
-                  )}
-                </div>
-
-                {/* Help Text */}
-                <div className="rounded-lg bg-blue-50 p-4 border border-blue-200">
-                  <p className="text-sm text-blue-800">
-                    💡 Your income helps us calculate your budget allocations and track your financial progress. 
-                    {isNotEarning ? " You can update this later when your situation changes." : " This information is kept private and secure."}
-                  </p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      {/* Modal for New Users */}
+      {/* Income Modal */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl">
-              <DollarSign className="h-6 w-6 text-primary" />
-              Welcome! Let's Get Started
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-primary" />
+              Set Your Monthly Income
             </DialogTitle>
-            <DialogDescription className="text-base">
-              To help you create effective budgets, we need to know your monthly income after tax.
+            <DialogDescription>
+              To get started with zero budgeting, we need to know your monthly income after taxes.
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="space-y-6 py-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            {/* Income Type Selection */}
+          <div className="space-y-4">
             <div className="space-y-3">
               <Label className="text-base font-medium">Are you currently earning income?</Label>
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <Button
                   variant={!isNotEarning ? "default" : "outline"}
                   onClick={handleEarning}
-                  className="flex-1"
+                  className="flex-1 h-10 sm:h-12"
                 >
                   Yes, I am earning
                 </Button>
                 <Button
                   variant={isNotEarning ? "default" : "outline"}
                   onClick={handleNotEarning}
-                  className="flex-1"
+                  className="flex-1 h-10 sm:h-12"
                 >
                   I am not currently earning
                 </Button>
               </div>
             </div>
 
-            {/* Income Input (only show if earning) */}
             {!isNotEarning && (
               <div className="space-y-3">
                 <Label htmlFor="modal-income" className="text-base font-medium">
                   Monthly Income After Tax
                 </Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-3 text-muted-foreground">£</span>
+                  <span className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-base sm:text-lg">£</span>
                   <Input
                     id="modal-income"
                     type="number"
                     placeholder="0.00"
                     value={income}
                     onChange={(e) => setIncome(e.target.value)}
-                    className="pl-8"
+                    className="pl-8 sm:pl-12 h-10 sm:h-12 text-base sm:text-lg"
                     min="0"
                     step="0.01"
                   />
@@ -382,37 +365,35 @@ export default function MonthlyIncomeInput() {
               </div>
             )}
 
-            {/* Action Buttons */}
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <Button 
                 onClick={handleSave} 
-                className="flex-1"
+                className="flex-1 h-10 sm:h-12"
                 disabled={isSaving || (!isNotEarning && !income.trim())}
               >
                 {isSaving ? (
                   <>
-                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    <div className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
                     Saving...
                   </>
                 ) : (
                   <>
-                    <Save className="mr-2 h-4 w-4" />
-                    Continue
+                    <Save className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+                    Save Income
                   </>
                 )}
               </Button>
-            </div>
-
-            {/* Help Text */}
-            <div className="rounded-lg bg-blue-50 p-3 border border-blue-200">
-              <p className="text-xs text-blue-800">
-                💡 You can always update your income later in your profile settings.
-                {isNotEarning ? " We'll help you create budgets when you start earning." : " This helps us create personalized budget recommendations."}
-              </p>
+              <Button 
+                onClick={() => setShowModal(false)} 
+                variant="outline" 
+                className="flex-1 h-10 sm:h-12"
+              >
+                Cancel
+              </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
-    </>
+    </motion.div>
   );
 }

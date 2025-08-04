@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useFirebaseStore } from "@/lib/store-firebase";
 import { useAuth } from "@/lib/auth-context";
+import { FieldValue, deleteField } from "firebase/firestore";
 import AddCategoryModal from "./AddCategoryModal";
 import CustomCategoryManager from "./CustomCategoryManager";
 import SaveTemplateModal from "./SaveTemplateModal";
@@ -16,8 +17,9 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { useToastContext } from "./ToastContext";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 import {
   Calculator,
   Calendar,
@@ -138,11 +140,13 @@ const itemVariants: Variants = {
 };
 
 export default function BudgetForm() {
-  const { toast } = useToast();
+  const { toast } = useToastContext();
+  const router = useRouter();
   
   // Store selectors
   const income = useFirebaseStore((s) => s.income);
   const addBudget = useFirebaseStore((s) => s.addBudget);
+  const updateBudget = useFirebaseStore((s) => s.updateBudget);
   const getBudgetTotal = useFirebaseStore((s) => s.getBudgetTotal);
   const getBudgetRemaining = useFirebaseStore((s) => s.getBudgetRemaining);
   const getCustomCategories = useFirebaseStore((s) => s.getCustomCategories);
@@ -389,15 +393,18 @@ export default function BudgetForm() {
   const remaining = getBudgetRemaining(allocationsArray, income);
   const allocationPercentage = income > 0 ? (totalAllocated / income) * 100 : 0;
 
+  // Helper function to handle floating-point precision when comparing to zero
+  const isZero = (value: number) => Math.abs(value) < 0.01;
+
   const getStatusColor = (remaining: number) => {
     if (remaining > 0) return "text-amber-600";
-    if (remaining < 0) return "text-red-600";
+    if (remaining < 0 && !isZero(remaining)) return "text-red-600";
     return "text-green-600";
   };
 
   const getStatusIcon = (remaining: number) => {
     if (remaining > 0) return <TrendingUp className="h-4 w-4" />;
-    if (remaining < 0) return <TrendingDown className="h-4 w-4" />;
+    if (remaining < 0 && !isZero(remaining)) return <TrendingDown className="h-4 w-4" />;
     return <CheckCircle className="h-4 w-4" />;
   };
 
@@ -472,7 +479,7 @@ export default function BudgetForm() {
     };
 
     // Check if over budget
-    if (remaining < 0) {
+    if (remaining < 0 && !isZero(remaining)) {
       setPendingBudgetData(budgetData);
       setOverBudgetModalOpen(true);
       return;
@@ -483,22 +490,29 @@ export default function BudgetForm() {
 
   const saveBudgetData = async (budgetData: any) => {
     try {
-      const budgetWithReason = {
-        ...budgetData,
-        overBudgetReason: remaining < 0 ? overBudgetReason : undefined,
-      };
+      // Create budget data without overBudgetReason first
+      const budgetWithoutReason = { ...budgetData };
+      
+      // Only add overBudgetReason if the budget is actually over budget
+      if (remaining < 0 && !isZero(remaining)) {
+        budgetWithoutReason.overBudgetReason = overBudgetReason;
+      }
 
-      console.log('Saving budget with data:', budgetWithReason);
+      console.log('Saving budget with data:', budgetWithoutReason);
       console.log('Remaining amount:', remaining);
       console.log('Over budget reason:', overBudgetReason);
 
+      let savedBudgetId: string;
+
       if (currentBudget && isEditing) {
         // Update existing budget
-        await addBudget(budgetWithReason);
+        await updateBudget(currentBudget.id, budgetWithoutReason);
+        savedBudgetId = currentBudget.id;
         console.log('Budget updated successfully');
       } else {
         // Create new budget - allocations are already included in budgetData
-        await addBudget(budgetWithReason);
+        const newBudget = await addBudget(budgetWithoutReason);
+        savedBudgetId = newBudget.id;
         console.log('Budget created successfully');
       }
 
@@ -508,6 +522,9 @@ export default function BudgetForm() {
       setPendingBudgetData(null);
       setBudgetSaved(true);
       setTimeout(() => setBudgetSaved(false), 3000); // Hide saved message after 3 seconds
+
+      // Show the view budget toast
+      showViewBudgetToast(savedBudgetId);
     } catch (error) {
       console.error('Error saving budget:', error);
       toast({
@@ -581,482 +598,507 @@ export default function BudgetForm() {
     }
   };
 
+  const showViewBudgetToast = (budgetId: string) => {
+    toast({
+      title: "Budget Saved!",
+      description: "View budget?",
+      action: (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            onClick={() => {
+              router.push(`/previous-budgets?budget=${budgetId}&view=breakdown`);
+            }}
+          >
+            Yes
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              // Dismiss toast - no action needed
+            }}
+          >
+            No
+          </Button>
+        </div>
+      ),
+    });
+  };
+
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="max-w-6xl mx-auto"
-    >
-             {/* Budget Management Header */}
+    <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="max-w-4xl mx-auto space-y-6 sm:space-y-8"
+      >
+        {/* Budget Setup */}
+        <motion.div variants={itemVariants}>
+          <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
+            <CardContent className="p-4 sm:p-6">
+              <div className="space-y-4 sm:space-y-6">
+                {/* Step 1: Month Selection */}
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold">Step 1: Select Month</Label>
+                  <Select value={selectedMonth || ""} onValueChange={handleMonthChange}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select month for your budget..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableMonthsList.map((month) => (
+                        <SelectItem key={month} value={month}>
+                          {month}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Step 1.5: Template Selection */}
+                {selectedMonth && (
+                  <div className="space-y-3">
+                    <Label className="text-base font-semibold">Step 1.5: Load Template (Optional)</Label>
+                    <TemplateSelector 
+                      onTemplateSelect={handleTemplateSelect}
+                      currentAllocations={allocationsArray}
+                    />
+                  </div>
+                )}
+
+                {/* Step 2: Budget Status & Actions */}
+                {selectedMonth && (
+                  <div className="space-y-4">
+                    <Label className="text-base font-semibold">Step 2: Budget Status</Label>
+                    
+                    {currentBudget ? (
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center gap-2 mb-3">
+                          <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                          <span className="font-medium text-blue-800 text-sm sm:text-base">Budget Exists for {selectedMonth}</span>
+                        </div>
+                        
+                        {/* Budget Details */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                          <div className="bg-white/50 p-3 rounded">
+                            <div className="text-xs text-blue-600 font-medium">Total Allocated</div>
+                            <div className="text-base sm:text-lg font-bold text-blue-800">
+                              £{getBudgetTotal(currentBudget.allocations).toFixed(2)}
+                            </div>
+                          </div>
+                          <div className="bg-white/50 p-3 rounded">
+                            <div className="text-xs text-blue-600 font-medium">Remaining</div>
+                            <div className={`text-base sm:text-lg font-bold ${
+                              getBudgetRemaining(currentBudget.allocations, currentBudget.income) >= 0 
+                                ? 'text-green-600' 
+                                : 'text-red-600'
+                            }`}>
+                              £{getBudgetRemaining(currentBudget.allocations, currentBudget.income).toFixed(2)}
+                            </div>
+                          </div>
+                          <div className="bg-white/50 p-3 rounded">
+                            <div className="text-xs text-blue-600 font-medium">Categories</div>
+                            <div className="text-base sm:text-lg font-bold text-blue-800">
+                              {currentBudget.allocations.length}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Button
+                            onClick={handleEditBudget}
+                            variant="outline"
+                            size="sm"
+                            className="bg-blue-600 text-black hover:bg-blue-700"
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit Existing Budget
+                          </Button>
+                          <Button
+                            onClick={handleCreateNew}
+                            variant="outline"
+                            size="sm"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Create New Budget
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Plus className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+                          <span className="font-medium text-green-800 text-sm sm:text-base">No Budget for {selectedMonth}</span>
+                        </div>
+                        <p className="text-xs sm:text-sm text-green-700 mb-3">
+                          You can create a new budget or load from a previous month
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={handleCreateNew}
+                            size="sm"
+                            className="bg-green-600 text-white hover:bg-green-700"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Create New Budget
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Step 3: Load Previous Budget */}
+                {selectedMonth && !currentBudget && (
+                  <div className="space-y-3">
+                    <Label className="text-base font-semibold">Step 3: Load Previous Budget (Optional)</Label>
+                    
+                    {previousBudget && (
+                      <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <RotateCcw className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
+                          <span className="font-medium text-amber-800 text-sm sm:text-base">Previous Budget Available</span>
+                        </div>
+                        <p className="text-xs sm:text-sm text-amber-700 mb-3">
+                          Load allocations from {previousBudget.month} to pre-fill this budget
+                        </p>
+                        <Button
+                          onClick={handleResetToPrevious}
+                          variant="outline"
+                          size="sm"
+                          className="border-amber-300 text-amber-700 hover:bg-amber-100"
+                        >
+                          <RotateCcw className="h-4 w-4 mr-2" />
+                          Load from {previousBudget.month}
+                        </Button>
+                      </div>
+                    )}
+
+                    {availableMonths.length > 0 && (
+                      <div className="space-y-2">
+                        <Label className="text-sm text-muted-foreground">Or load any previous budget:</Label>
+                        <Select value={selectedBudget || ""} onValueChange={handleBudgetSelect}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a previous budget to load..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableMonths.map(month => {
+                              const budget = budgets.find(b => b.month === month);
+                              return (
+                                <SelectItem key={budget?.id || month} value={budget?.id || ""}>
+                                  {month} - £{budget ? getBudgetTotal(budget.allocations).toFixed(2) : '0.00'}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Current Status */}
+                {selectedMonth && (
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Calculator className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium text-muted-foreground">Current Status</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Selected Month:</span>
+                        <span className="ml-2 font-medium">{selectedMonth}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Mode:</span>
+                        <span className="ml-2 font-medium">
+                          {currentBudget ? (isEditing ? 'Editing' : 'Viewing') : 'Creating New'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+       {/* Budget Summary */}
        <motion.div variants={itemVariants} className="mb-8">
          <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
-           <CardHeader>
-             <CardTitle className="flex items-center gap-2">
-               <Calendar className="h-5 w-5" />
-               Create or Edit Budget
-             </CardTitle>
-           </CardHeader>
-           <CardContent className="space-y-6">
-             {/* Step 1: Select Month */}
-             <div className="space-y-3">
-               <Label className="text-base font-semibold">Step 1: Choose Month</Label>
-               <Select value={selectedMonth} onValueChange={handleMonthChange}>
-                 <SelectTrigger className="w-full">
-                   <SelectValue placeholder="Select month for your budget..." />
-                 </SelectTrigger>
-                 <SelectContent>
-                   {availableMonthsList.map((month) => (
-                     <SelectItem key={month} value={month}>
-                       {month}
-                     </SelectItem>
-                   ))}
-                 </SelectContent>
-               </Select>
+           <CardContent className="p-4 sm:p-6">
+             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+               <div className="space-y-2">
+                 <div className="flex items-center gap-2 text-muted-foreground">
+                   <DollarSign className="h-4 w-4" />
+                   <span className="text-xs sm:text-sm">Monthly Income</span>
+                 </div>
+                 <div className="text-xl sm:text-2xl font-bold">£{income.toFixed(2)}</div>
+               </div>
+
+               <div className="space-y-2">
+                 <div className="flex items-center gap-2 text-muted-foreground">
+                   <Target className="h-4 w-4" />
+                   <span className="text-xs sm:text-sm">Allocated</span>
+                 </div>
+                 <div className="text-xl sm:text-2xl font-bold">£{totalAllocated.toFixed(2)}</div>
+                 <Progress value={allocationPercentage} className="h-2" />
+                 <div className="text-xs text-muted-foreground">
+                   {allocationPercentage.toFixed(1)}% of income
+                 </div>
+               </div>
+
+               <div className="space-y-2">
+                 <div className="flex items-center gap-2 text-muted-foreground">
+                   {getStatusIcon(remaining)}
+                   <span className="text-xs sm:text-sm">Remaining</span>
+                   <Button
+                     variant="ghost"
+                     size="sm"
+                     onClick={() => setShowRemaining(!showRemaining)}
+                     className="h-4 w-4 p-0"
+                   >
+                     {showRemaining ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                   </Button>
+                 </div>
+                 <div className={cn("text-xl sm:text-2xl font-bold", getStatusColor(remaining))}>
+                   {showRemaining ? `£${isZero(remaining) ? "0.00" : remaining.toFixed(2)}` : "••••"}
+                 </div>
+               </div>
+
+               <div className="space-y-2">
+                 <div className="flex items-center gap-2 text-muted-foreground">
+                   <Calculator className="h-4 w-4" />
+                   <span className="text-xs sm:text-sm">Status</span>
+                 </div>
+                 <Badge 
+                   variant={isZero(remaining) ? "default" : remaining > 0 ? "secondary" : "destructive"}
+                   className="text-xs sm:text-sm"
+                 >
+                   {isZero(remaining) ? "Balanced" : remaining > 0 ? "Under Budget" : "Over Budget"}
+                 </Badge>
+               </div>
              </div>
-
-             {/* Step 1.5: Template Selection */}
-             {selectedMonth && (
-               <div className="space-y-3">
-                 <Label className="text-base font-semibold">Step 1.5: Load Template (Optional)</Label>
-                 <TemplateSelector 
-                   onTemplateSelect={handleTemplateSelect}
-                   currentAllocations={allocationsArray}
-                 />
-               </div>
-             )}
-
-             {/* Step 2: Budget Status & Actions */}
-             {selectedMonth && (
-               <div className="space-y-4">
-                 <Label className="text-base font-semibold">Step 2: Budget Status</Label>
-                 
-                 {currentBudget ? (
-                   <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                     <div className="flex items-center gap-2 mb-3">
-                       <CheckCircle className="h-5 w-5 text-blue-600" />
-                       <span className="font-medium text-blue-800">Budget Exists for {selectedMonth}</span>
-                     </div>
-                     
-                     {/* Budget Details */}
-                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-                       <div className="bg-white/50 p-3 rounded">
-                         <div className="text-xs text-blue-600 font-medium">Total Allocated</div>
-                         <div className="text-lg font-bold text-blue-800">
-                           £{getBudgetTotal(currentBudget.allocations).toFixed(2)}
-                         </div>
-                       </div>
-                       <div className="bg-white/50 p-3 rounded">
-                         <div className="text-xs text-blue-600 font-medium">Remaining</div>
-                         <div className={`text-lg font-bold ${
-                           getBudgetRemaining(currentBudget.allocations, currentBudget.income) >= 0 
-                             ? 'text-green-600' 
-                             : 'text-red-600'
-                         }`}>
-                           £{getBudgetRemaining(currentBudget.allocations, currentBudget.income).toFixed(2)}
-                         </div>
-                       </div>
-                       <div className="bg-white/50 p-3 rounded">
-                         <div className="text-xs text-blue-600 font-medium">Categories</div>
-                         <div className="text-lg font-bold text-blue-800">
-                           {currentBudget.allocations.length}
-                         </div>
-                       </div>
-                     </div>
-                     
-                     <div className="flex gap-2">
-                       <Button
-                         onClick={handleEditBudget}
-                         variant="outline"
-                         size="sm"
-                         className="bg-blue-600 text-black hover:bg-blue-700"
-                       >
-                         <Edit className="h-4 w-4 mr-2" />
-                         Edit Existing Budget
-                       </Button>
-                       <Button
-                         onClick={handleCreateNew}
-                         variant="outline"
-                         size="sm"
-                       >
-                         <Plus className="h-4 w-4 mr-2" />
-                         Create New Budget
-                       </Button>
-                     </div>
-                   </div>
-                 ) : (
-                   <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                     <div className="flex items-center gap-2 mb-2">
-                       <Plus className="h-5 w-5 text-green-600" />
-                       <span className="font-medium text-green-800">No Budget for {selectedMonth}</span>
-                     </div>
-                     <p className="text-sm text-green-700 mb-3">
-                       You can create a new budget or load from a previous month
-                     </p>
-                     <div className="flex gap-2">
-                       <Button
-                         onClick={handleCreateNew}
-                         size="sm"
-                         className="bg-green-600 text-white hover:bg-green-700"
-                       >
-                         <Plus className="h-4 w-4 mr-2" />
-                         Create New Budget
-                       </Button>
-                     </div>
-                   </div>
-                 )}
-               </div>
-             )}
-
-             {/* Step 3: Load Previous Budget */}
-             {selectedMonth && !currentBudget && (
-               <div className="space-y-3">
-                 <Label className="text-base font-semibold">Step 3: Load Previous Budget (Optional)</Label>
-                 
-                 {previousBudget && (
-                   <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                     <div className="flex items-center gap-2 mb-2">
-                       <RotateCcw className="h-5 w-5 text-amber-600" />
-                       <span className="font-medium text-amber-800">Previous Budget Available</span>
-                     </div>
-                     <p className="text-sm text-amber-700 mb-3">
-                       Load allocations from {previousBudget.month} to pre-fill this budget
-                     </p>
-                     <Button
-                       onClick={handleResetToPrevious}
-                       variant="outline"
-                       size="sm"
-                       className="border-amber-300 text-amber-700 hover:bg-amber-100"
-                     >
-                       <RotateCcw className="h-4 w-4 mr-2" />
-                       Load from {previousBudget.month}
-                     </Button>
-                   </div>
-                 )}
-
-                 {availableMonths.length > 0 && (
-                   <div className="space-y-2">
-                     <Label className="text-sm text-muted-foreground">Or load any previous budget:</Label>
-                     <Select value={selectedBudget || ""} onValueChange={handleBudgetSelect}>
-                       <SelectTrigger>
-                         <SelectValue placeholder="Select a previous budget to load..." />
-                       </SelectTrigger>
-                       <SelectContent>
-                         {availableMonths.map(month => {
-                           const budget = budgets.find(b => b.month === month);
-                           return (
-                             <SelectItem key={budget?.id || month} value={budget?.id || ""}>
-                               {month} - £{budget ? getBudgetTotal(budget.allocations).toFixed(2) : '0.00'}
-                             </SelectItem>
-                           );
-                         })}
-                       </SelectContent>
-                     </Select>
-                   </div>
-                 )}
-               </div>
-             )}
-
-             {/* Current Status */}
-             {selectedMonth && (
-               <div className="p-4 bg-muted/50 rounded-lg">
-                 <div className="flex items-center gap-2 mb-2">
-                   <Calculator className="h-4 w-4 text-muted-foreground" />
-                   <span className="text-sm font-medium text-muted-foreground">Current Status</span>
-                 </div>
-                 <div className="grid grid-cols-2 gap-4 text-sm">
-                   <div>
-                     <span className="text-muted-foreground">Selected Month:</span>
-                     <span className="ml-2 font-medium">{selectedMonth}</span>
-                   </div>
-                   <div>
-                     <span className="text-muted-foreground">Mode:</span>
-                     <span className="ml-2 font-medium">
-                       {currentBudget ? (isEditing ? 'Editing' : 'Viewing') : 'Creating New'}
-                     </span>
-                   </div>
-                 </div>
-               </div>
-             )}
            </CardContent>
          </Card>
        </motion.div>
 
-      {/* Budget Summary */}
-      <motion.div variants={itemVariants} className="mb-8">
-        <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <DollarSign className="h-4 w-4" />
-                  <span className="text-sm">Monthly Income</span>
-                </div>
-                <div className="text-2xl font-bold">£{income.toFixed(2)}</div>
-              </div>
+       {/* Goal Allocations Breakdown */}
+       {goals.filter(g => g.isActive).length > 0 && (
+         <motion.div variants={itemVariants} className="mb-8">
+           <Card className="border-green-200 bg-green-50/30">
+             <CardHeader>
+               <CardTitle className="flex items-center gap-2 text-green-700">
+                 <Target className="h-4 w-4 sm:h-5 sm:w-5" />
+                 Goal Allocations
+               </CardTitle>
+             </CardHeader>
+             <CardContent className="space-y-3">
+               {goals.filter(g => g.isActive).map(goal => (
+                 <div key={goal.id} className="flex justify-between items-center p-2 bg-white/50 rounded">
+                   <div className="flex items-center gap-2">
+                     <Target className="h-4 w-4 text-green-600" />
+                     <span className="font-medium text-sm sm:text-base">{goal.title}</span>
+                   </div>
+                   <div className="text-right">
+                     <div className="font-semibold text-green-700 text-sm sm:text-base">
+                       £{(amounts[goal.title] || 0).toFixed(2)}
+                     </div>
+                     <div className="text-xs text-muted-foreground">
+                       Target: £{goal.target.toFixed(2)}
+                     </div>
+                   </div>
+                 </div>
+               ))}
+             </CardContent>
+           </Card>
+         </motion.div>
+       )}
 
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Target className="h-4 w-4" />
-                  <span className="text-sm">Allocated</span>
-                </div>
-                <div className="text-2xl font-bold">£{totalAllocated.toFixed(2)}</div>
-                <Progress value={allocationPercentage} className="h-2" />
-                <div className="text-xs text-muted-foreground">
-                  {allocationPercentage.toFixed(1)}% of income
-                </div>
-              </div>
+       {/* Debt Allocations Breakdown */}
+       {debts.filter(d => d.isActive).length > 0 && (
+         <motion.div variants={itemVariants} className="mb-8">
+           <Card className="border-red-200 bg-red-50/30">
+             <CardHeader>
+               <CardTitle className="flex items-center gap-2 text-red-700">
+                 <CreditCard className="h-4 w-4 sm:h-5 sm:w-5" />
+                 Debt Allocations
+               </CardTitle>
+             </CardHeader>
+             <CardContent className="space-y-3">
+               {debts.filter(d => d.isActive).map(debt => (
+                 <div key={debt.id} className="flex justify-between items-center p-2 bg-white/50 rounded">
+                   <div className="flex items-center gap-2">
+                     <CreditCard className="h-4 w-4 text-red-600" />
+                     <span className="font-medium text-sm sm:text-base">{debt.name}</span>
+                   </div>
+                   <div className="text-right">
+                     <div className="font-semibold text-red-700 text-sm sm:text-base">
+                       £{(amounts[debt.name] || 0).toFixed(2)}
+                     </div>
+                     <div className="text-xs text-muted-foreground">
+                       Total: £{debt.totalAmount.toFixed(2)}
+                     </div>
+                   </div>
+                 </div>
+               ))}
+             </CardContent>
+           </Card>
+         </motion.div>
+       )}
 
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  {getStatusIcon(remaining)}
-                  <span className="text-sm">Remaining</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowRemaining(!showRemaining)}
-                    className="h-4 w-4 p-0"
-                  >
-                    {showRemaining ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                  </Button>
-                </div>
-                <div className={cn("text-2xl font-bold", getStatusColor(remaining))}>
-                  {showRemaining ? `£${remaining.toFixed(2)}` : "••••"}
-                </div>
-              </div>
+       {/* Budget Categories */}
+       <motion.div variants={itemVariants}>
+         <Tabs defaultValue="categories" className="space-y-6">
+           <TabsList className="grid w-full grid-cols-2">
+             <TabsTrigger value="categories">Budget Categories</TabsTrigger>
+             <TabsTrigger value="summary">Budget Summary</TabsTrigger>
+           </TabsList>
 
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Calculator className="h-4 w-4" />
-                  <span className="text-sm">Status</span>
-                </div>
-                <Badge 
-                  variant={remaining === 0 ? "default" : remaining > 0 ? "secondary" : "destructive"}
-                  className="text-sm"
-                >
-                  {remaining === 0 ? "Balanced" : remaining > 0 ? "Under Budget" : "Over Budget"}
-                </Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+                    <TabsContent value="categories" className="space-y-6">
+              <div className="space-y-6">
+         {budgetSections.map((section: { title: string; categories: string[]; icon: React.ReactNode }) => {
+           const custom = getCustomCategories(section.title);
+           let allCategories = [...section.categories, ...custom];
+           
+           // Dynamically populate Goals section with user's active goals
+           if (section.title === "Goals") {
+             const activeGoals = goals.filter(g => g.isActive).map(g => g.title);
+             allCategories = [...activeGoals, ...custom];
+           }
+           
+           // Dynamically populate Debts section with user's active debts
+           if (section.title === "Debts") {
+             const activeDebts = debts.filter(d => d.isActive).map(d => d.name);
+             allCategories = [...activeDebts, ...custom];
+           }
+           
+           // Skip rendering if no categories in this group
+           if (allCategories.length === 0) {
+             return null;
+           }
+           
+           const debtsInGroup = debts.filter((d) => allCategories.includes(d.name));
+           const userCategories = allCategories.filter((cat) => !debts.some((d) => d.name === cat));
 
-      {/* Goal Allocations Breakdown */}
-      {goals.filter(g => g.isActive).length > 0 && (
-        <motion.div variants={itemVariants} className="mb-8">
-          <Card className="border-green-200 bg-green-50/30">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-green-700">
-                <Target className="h-5 w-5" />
-                Goal Allocations
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {goals.filter(g => g.isActive).map(goal => (
-                <div key={goal.id} className="flex justify-between items-center p-2 bg-white/50 rounded">
-                  <div className="flex items-center gap-2">
-                    <Target className="h-4 w-4 text-green-600" />
-                    <span className="font-medium">{goal.title}</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-green-700">
-                      £{(amounts[goal.title] || 0).toFixed(2)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Target: £{goal.target.toFixed(2)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
-
-      {/* Debt Allocations Breakdown */}
-      {debts.filter(d => d.isActive).length > 0 && (
-        <motion.div variants={itemVariants} className="mb-8">
-          <Card className="border-red-200 bg-red-50/30">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-red-700">
-                <CreditCard className="h-5 w-5" />
-                Debt Allocations
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {debts.filter(d => d.isActive).map(debt => (
-                <div key={debt.id} className="flex justify-between items-center p-2 bg-white/50 rounded">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-4 w-4 text-red-600" />
-                    <span className="font-medium">{debt.name}</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-red-700">
-                      £{(amounts[debt.name] || 0).toFixed(2)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Total: £{debt.totalAmount.toFixed(2)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
-
-      {/* Budget Categories */}
-      <motion.div variants={itemVariants}>
-        <Tabs defaultValue="categories" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="categories">Budget Categories</TabsTrigger>
-            <TabsTrigger value="summary">Budget Summary</TabsTrigger>
-          </TabsList>
-
-                     <TabsContent value="categories" className="space-y-6">
-             <div className="space-y-6">
-        {budgetSections.map((section: { title: string; categories: string[]; icon: React.ReactNode }) => {
-          const custom = getCustomCategories(section.title);
-          let allCategories = [...section.categories, ...custom];
-          
-          // Dynamically populate Goals section with user's active goals
-          if (section.title === "Goals") {
-            const activeGoals = goals.filter(g => g.isActive).map(g => g.title);
-            allCategories = [...activeGoals, ...custom];
-          }
-          
-          // Dynamically populate Debts section with user's active debts
-          if (section.title === "Debts") {
-            const activeDebts = debts.filter(d => d.isActive).map(d => d.name);
-            allCategories = [...activeDebts, ...custom];
-          }
-          
-          // Skip rendering if no categories in this group
-          if (allCategories.length === 0) {
-            return null;
-          }
-          
-          const debtsInGroup = debts.filter((d) => allCategories.includes(d.name));
-          const userCategories = allCategories.filter((cat) => !debts.some((d) => d.name === cat));
-
-          return (
-                   <Card key={section.title} className={cn(
-                     section.title === "Goals" && "border-green-200 bg-green-50/30",
-                     section.title === "Debts" && "border-red-200 bg-red-50/30"
-                   )}>
-                     <CardHeader className="pb-4">
-                       <div className="flex justify-between items-center">
-                         <div className="flex items-center gap-2">
-                           {CATEGORY_ICONS[section.title] || <Calculator className="h-4 w-4" />}
-                           <CardTitle className={cn(
-                             "text-lg",
-                             section.title === "Goals" && "text-green-700",
-                             section.title === "Debts" && "text-red-700"
-                           )}>{section.title}</CardTitle>
-                           {section.title === "Goals" && (
-                             <Badge variant="outline" className="text-xs bg-green-100 text-green-700 border-green-300">
-                               Auto-allocated
-                             </Badge>
-                           )}
-                           {section.title === "Debts" && (
-                             <Badge variant="outline" className="text-xs bg-red-100 text-red-700 border-red-300">
-                               Auto-allocated
-                             </Badge>
-                           )}
-                         </div>
-                       </div>
-                     </CardHeader>
-                     <CardContent className="space-y-4">
-                       {/* Custom Category Manager - moved to top of section */}
-                       <CustomCategoryManager 
-                         section={section.title} 
-                         title="Custom Categories" 
-                       />
-                       
-                       <div className="grid grid-cols-2 gap-4">
-                {userCategories.map((cat) => {
-                  // Check if this is a goal category
-                  const isGoalCategory = section.title === "Goals";
-                  const isDebtCategory = section.title === "Debts";
-                  const goal = goals.find(g => g.title === cat);
-                  const debt = debts.find(d => d.name === cat);
-                  const isEditable = editableGoals.has(cat);
-                  
-                  return (
-                    <div key={cat} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-sm font-medium">
-                          {cat}
-                        </Label>
-                        <div className="flex items-center gap-1">
-                          {isGoalCategory && goal && (
-                            <Badge variant="outline" className="text-xs">
-                              Goal
-                            </Badge>
-                          )}
-                          {isDebtCategory && debt && (
-                            <Badge variant="outline" className="text-xs text-red-600 border-red-300">
-                              Debt
-                            </Badge>
-                          )}
-                          {/* Remove button for custom categories */}
-                          {custom.includes(cat) && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemoveCustomCategory(section.title, cat)}
-                              className="h-6 px-2 text-xs text-destructive hover:text-destructive"
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          )}
+           return (
+                    <Card key={section.title} className={cn(
+                      section.title === "Goals" && "border-green-200 bg-green-50/30",
+                      section.title === "Debts" && "border-red-200 bg-red-50/30"
+                    )}>
+                      <CardHeader className="pb-4">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            {CATEGORY_ICONS[section.title] || <Calculator className="h-4 w-4" />}
+                            <CardTitle className={cn(
+                              "text-base sm:text-lg",
+                              section.title === "Goals" && "text-green-700",
+                              section.title === "Debts" && "text-red-700"
+                            )}>{section.title}</CardTitle>
+                            {section.title === "Goals" && (
+                              <Badge variant="outline" className="text-xs bg-green-100 text-green-700 border-green-300">
+                                Auto-allocated
+                              </Badge>
+                            )}
+                            {section.title === "Debts" && (
+                              <Badge variant="outline" className="text-xs bg-red-100 text-red-700 border-red-300">
+                                Auto-allocated
+                              </Badge>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          value={amounts[cat] ?? ""}
-                          onChange={(e) => handleAmountChange(cat, e.target.value)}
-                          className={cn(
-                            "pr-8",
-                            !isEditing && currentBudget && "opacity-70 cursor-not-allowed",
-                            isGoalCategory && !isEditable && "bg-green-50 border-green-200",
-                            isDebtCategory && "bg-red-50 border-red-200"
-                          )}
-                          placeholder="0.00"
-                          disabled={(!isEditing && !!currentBudget) || (isGoalCategory && !isEditable) || isDebtCategory}
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {/* Custom Category Manager - moved to top of section */}
+                        <CustomCategoryManager 
+                          section={section.title} 
+                          title="Custom Categories" 
                         />
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                          £
-                        </span>
-                      </div>
-                      {isGoalCategory && goal && (
-                        <div className="text-xs text-muted-foreground">
-                          Target: £{goal.target.toFixed(2)} | Monthly: £{goal.monthlyContribution.toFixed(2)}
-                        </div>
-                      )}
-                      {isDebtCategory && debt && (
-                        <div className="text-xs text-muted-foreground">
-                          Total: £{debt.totalAmount.toFixed(2)} | Monthly: £{debt.monthlyRepayment.toFixed(2)}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+               {userCategories.map((cat) => {
+                 // Check if this is a goal category
+                 const isGoalCategory = section.title === "Goals";
+                 const isDebtCategory = section.title === "Debts";
+                 const goal = goals.find(g => g.title === cat);
+                 const debt = debts.find(d => d.name === cat);
+                 const isEditable = editableGoals.has(cat);
+                 
+                 return (
+                   <div key={cat} className="space-y-2">
+                     <div className="flex items-center justify-between">
+                       <Label className="text-xs sm:text-sm font-medium">
+                         {cat}
+                       </Label>
+                       <div className="flex items-center gap-1">
+                         {isGoalCategory && goal && (
+                           <Badge variant="outline" className="text-xs">
+                             Goal
+                           </Badge>
+                         )}
+                         {isDebtCategory && debt && (
+                           <Badge variant="outline" className="text-xs text-red-600 border-red-300">
+                             Debt
+                           </Badge>
+                         )}
+                         {/* Remove button for custom categories */}
+                         {custom.includes(cat) && (
+                           <Button
+                             type="button"
+                             variant="ghost"
+                             size="sm"
+                             onClick={() => handleRemoveCustomCategory(section.title, cat)}
+                             className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                           >
+                             <X className="h-3 w-3" />
+                           </Button>
+                         )}
+                       </div>
+                     </div>
+                     <div className="relative">
+                       <Input
+                         type="number"
+                         value={amounts[cat] ?? ""}
+                         onChange={(e) => handleAmountChange(cat, e.target.value)}
+                         className={cn(
+                           "pr-8",
+                           !isEditing && currentBudget && "opacity-70 cursor-not-allowed",
+                           isGoalCategory && !isEditable && "bg-green-50 border-green-200",
+                           isDebtCategory && "bg-red-50 border-red-200"
+                         )}
+                         placeholder="0.00"
+                         disabled={(!isEditing && !!currentBudget) || (isGoalCategory && !isEditable) || isDebtCategory}
+                       />
+                       <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                         £
+                       </span>
+                     </div>
+                     {isGoalCategory && goal && (
+                       <div className="text-xs text-muted-foreground">
+                         Target: £{goal.target.toFixed(2)} | Monthly: £{goal.monthlyContribution.toFixed(2)}
+                       </div>
+                     )}
+                     {isDebtCategory && debt && (
+                       <div className="text-xs text-muted-foreground">
+                         Total: £{debt.totalAmount.toFixed(2)} | Monthly: £{debt.monthlyRepayment.toFixed(2)}
+                       </div>
+                     )}
+                   </div>
+                 );
+               })}
 
-                {debtsInGroup.map((debt) => (
-                           <div key={debt.id} className="space-y-2">
-                             <div className="flex items-center gap-2">
-                               <CreditCard className="h-4 w-4 text-destructive" />
-                               <Label className="text-sm font-medium text-destructive">
-                                 {debt.name}
-                               </Label>
-                               <Badge variant="destructive" className="text-xs">Debt</Badge>
-                             </div>
-                             <div className="relative">
-                               <Input
+               {debtsInGroup.map((debt) => (
+                              <div key={debt.id} className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <CreditCard className="h-4 w-4 text-destructive" />
+                                  <Label className="text-xs sm:text-sm font-medium text-destructive">
+                                    {debt.name}
+                                  </Label>
+                                  <Badge variant="destructive" className="text-xs">Debt</Badge>
+                                </div>
+                                <div className="relative">
+                                  <Input
                       type="number"
                       value={amounts[debt.name]?.toFixed(2) ?? "0.00"}
                       readOnly
@@ -1130,17 +1172,17 @@ export default function BudgetForm() {
 
                  {/* Status Indicator */}
                  <div className={`flex items-center gap-2 p-3 rounded-lg ${
-                   remaining === 0 ? 'bg-green-50 border border-green-200' :
+                   isZero(remaining) ? 'bg-green-50 border border-green-200' :
                    remaining > 0 ? 'bg-amber-50 border border-amber-200' :
                    'bg-red-50 border border-red-200'
                  }`}>
                    {getStatusIcon(remaining)}
                    <span className={`font-medium ${
-                     remaining === 0 ? 'text-green-700' :
+                     isZero(remaining) ? 'text-green-700' :
                      remaining > 0 ? 'text-amber-700' :
                      'text-red-700'
                    }`}>
-                     {remaining === 0 ? 'Perfect allocation!' :
+                     {isZero(remaining) ? 'Perfect allocation!' :
                       remaining > 0 ? `${remaining.toFixed(2)} remaining to allocate` :
                       `${Math.abs(remaining).toFixed(2)} over budget`}
                    </span>
@@ -1223,15 +1265,17 @@ export default function BudgetForm() {
         <div className="flex flex-col items-end gap-1">
           <Button
             onClick={handleSaveBudget}
-            disabled={!selectedMonth || (!!currentBudget && !isEditing) || budgetSaved}
+            disabled={!selectedMonth || (!!currentBudget && !isEditing) || budgetSaved || remaining > 0}
             className={cn(
               "bg-primary hover:bg-primary/90",
-              remaining < 0 && "bg-amber-600 hover:bg-amber-700",
+              remaining < 0 && !isZero(remaining) && "bg-amber-600 hover:bg-amber-700",
               budgetSaved && "bg-green-600 hover:bg-green-700 cursor-not-allowed"
             )}
           >
             <Save className="h-4 w-4 mr-2" />
-            {budgetSaved ? "Budget Saved" : (currentBudget && isEditing ? "Update Budget" : "Save Budget")}
+            {budgetSaved ? "Budget Saved" : 
+             remaining > 0 ? "Allocate Remaining £" + remaining.toFixed(2) :
+             (currentBudget && isEditing ? "Update Budget" : "Save Budget")}
           </Button>
           <p className="text-xs text-muted-foreground">
             {totalAllocated > 0 ? `£${totalAllocated.toFixed(2)} allocated` : "No allocations"}
@@ -1291,5 +1335,6 @@ export default function BudgetForm() {
         </DialogContent>
       </Dialog>
     </motion.div>
+    </div>
   );
 }

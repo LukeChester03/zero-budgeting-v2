@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { useFirebaseStore } from "@/lib/store-firebase";
 import { useAuth } from "@/lib/auth-context";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,7 +40,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { budgetTemplate } from "@/app/utils/template";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 // Motion variants
@@ -66,6 +66,7 @@ const itemVariants = {
 export default function PreviousBudgetsPage() {
   const { user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const budgets = useFirebaseStore((s) => s.budgets);
   const goals = useFirebaseStore((s) => s.goals);
   const debts = useFirebaseStore((s) => s.debts);
@@ -77,6 +78,34 @@ export default function PreviousBudgetsPage() {
   const [showRemaining, setShowRemaining] = useState(true);
   const [sortBy, setSortBy] = useState<"date" | "income" | "savings" | "efficiency">("date");
   const [viewMode, setViewMode] = useState<"breakdown" | "table">("breakdown");
+
+  // Helper function to handle floating-point precision when comparing to zero
+  const isZero = (value: number) => Math.abs(value) < 0.01;
+
+  // Handle URL parameters for auto-selecting budget and view mode
+  useEffect(() => {
+    const budgetId = searchParams.get('budget');
+    const viewParam = searchParams.get('view');
+    
+    if (budgetId && budgets.length > 0) {
+      // Check if the budget exists
+      const budgetExists = budgets.some(b => b.id === budgetId);
+      if (budgetExists) {
+        setSelectedBudget(budgetId);
+        
+        // Set view mode if specified
+        if (viewParam === 'breakdown') {
+          setViewMode('breakdown');
+        }
+        
+        // Clear URL parameters after setting state
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete('budget');
+        newUrl.searchParams.delete('view');
+        router.replace(newUrl.pathname, { scroll: false });
+      }
+    }
+  }, [searchParams, budgets, router]);
 
   // Get savings categories
   const savingsCategories = budgetTemplate.find(group => group.title === "Savings & Investments")?.categories || [];
@@ -180,18 +209,30 @@ export default function PreviousBudgetsPage() {
 
   const getBudgetInsights = (budget: any) => {
     const totalAllocated = getBudgetTotal(budget.allocations);
+    const remaining = getBudgetRemaining(budget.allocations, budget.income);
     const savings = budget.allocations
       .filter((a: any) => savingsCategories.includes(a.category))
       .reduce((sum: number, a: any) => sum + a.amount, 0);
     const savingsRate = (savings / budget.income) * 100;
     const allocationRate = (totalAllocated / budget.income) * 100;
 
+    // Use the same logic as BudgetForm.tsx for consistent status calculation
+    let status: string;
+    if (isZero(remaining)) {
+      status = "balanced";
+    } else if (remaining > 0) {
+      status = "under";
+    } else {
+      status = "over";
+    }
+
     return {
       totalAllocated,
       savings,
       savingsRate,
       allocationRate,
-      status: allocationRate <= 100 ? "under" : allocationRate > 100 ? "over" : "balanced"
+      remaining,
+      status
     };
   };
 
@@ -542,41 +583,37 @@ export default function PreviousBudgetsPage() {
       animate={{ opacity: 1 }}
       className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20"
     >
-      <div className="container mx-auto px-6 py-24">
+      <div className="container mx-auto px-4 sm:px-6 py-12 sm:py-24">
         <motion.div
           variants={containerVariants}
           initial="hidden"
           animate="visible"
-          className="max-w-7xl mx-auto"
+          className="space-y-8 sm:space-y-12"
         >
-          {/* Hero Section */}
-          <motion.div variants={itemVariants} className="mb-12">
-            <div className="text-center mb-8">
-              <div className="flex items-center justify-center gap-3 mb-6">
-                <div className="p-3 bg-primary/10 rounded-full">
-                  <History className="h-8 w-8 text-primary" />
-                </div>
-                <h1 className="text-4xl md:text-6xl font-bold text-primary">
-                  Budget History
-                </h1>
-              </div>
-              <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-                Analyze your financial journey, track progress, and learn from your past budgeting decisions
-              </p>
+          {/* Header */}
+          <motion.div variants={itemVariants} className="text-center">
+            <div className="flex items-center justify-center gap-2 mb-4 sm:mb-6">
+              <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+              <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold text-primary">
+                Budget History
+              </h1>
             </div>
+            <p className="text-lg sm:text-xl text-muted-foreground max-w-3xl mx-auto px-4">
+              Analyze your financial journey, track progress, and learn from your past budgeting decisions
+            </p>
           </motion.div>
 
           {/* Insights Overview */}
           {insights && (
             <motion.div variants={itemVariants} className="mb-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                 <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
-                  <CardContent className="p-6">
+                  <CardContent className="p-4 sm:p-6">
                     <div className="flex items-center gap-3 mb-3">
-                      <DollarSign className="h-5 w-5 text-primary" />
-                      <span className="text-sm font-medium text-muted-foreground">Total Income</span>
+                      <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                      <span className="text-xs sm:text-sm font-medium text-muted-foreground">Total Income</span>
                     </div>
-                    <div className="text-2xl font-bold">£{insights.totalIncome.toFixed(2)}</div>
+                    <div className="text-xl sm:text-2xl font-bold">£{insights.totalIncome.toFixed(2)}</div>
                     <div className="text-xs text-muted-foreground mt-1">
                       Across {insights.totalMonths} months
                     </div>
@@ -584,12 +621,12 @@ export default function PreviousBudgetsPage() {
                 </Card>
 
                 <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
-                  <CardContent className="p-6">
+                  <CardContent className="p-4 sm:p-6">
                     <div className="flex items-center gap-3 mb-3">
-                      <Target className="h-5 w-5 text-primary" />
-                      <span className="text-sm font-medium text-muted-foreground">Avg. Savings Rate</span>
+                      <Target className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                      <span className="text-xs sm:text-sm font-medium text-muted-foreground">Avg. Savings Rate</span>
                     </div>
-                    <div className="text-2xl font-bold">{insights.avgSavingsRate.toFixed(1)}%</div>
+                    <div className="text-xl sm:text-2xl font-bold">{insights.avgSavingsRate.toFixed(1)}%</div>
                     <div className="text-xs text-muted-foreground mt-1">
                       Average monthly savings rate
                     </div>
@@ -597,12 +634,12 @@ export default function PreviousBudgetsPage() {
                 </Card>
 
                 <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
-                  <CardContent className="p-6">
+                  <CardContent className="p-4 sm:p-6">
                     <div className="flex items-center gap-3 mb-3">
-                      <PiggyBank className="h-5 w-5 text-primary" />
-                      <span className="text-sm font-medium text-muted-foreground">Total Saved</span>
+                      <PiggyBank className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                      <span className="text-xs sm:text-sm font-medium text-muted-foreground">Total Saved</span>
                     </div>
-                    <div className="text-2xl font-bold">£{insights.totalSavings.toFixed(2)}</div>
+                    <div className="text-xl sm:text-2xl font-bold">£{insights.totalSavings.toFixed(2)}</div>
                     <div className="text-xs text-muted-foreground mt-1">
                       Total savings across all budgets
                     </div>
@@ -610,12 +647,12 @@ export default function PreviousBudgetsPage() {
                 </Card>
 
                 <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
-                  <CardContent className="p-6">
+                  <CardContent className="p-4 sm:p-6">
                     <div className="flex items-center gap-3 mb-3">
-                      <Award className="h-5 w-5 text-primary" />
-                      <span className="text-sm font-medium text-muted-foreground">Best Month</span>
+                      <Award className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                      <span className="text-xs sm:text-sm font-medium text-muted-foreground">Best Month</span>
                     </div>
-                    <div className="text-lg font-bold">{insights.bestMonth.month}</div>
+                    <div className="text-lg sm:text-xl font-bold">{insights.bestMonth.month}</div>
                     <div className="text-xs text-muted-foreground mt-1">
                       £{insights.bestMonth.allocations
                         .filter(a => savingsCategories.includes(a.category))
@@ -630,14 +667,14 @@ export default function PreviousBudgetsPage() {
           {/* Instructions */}
           <motion.div variants={itemVariants} className="mb-8">
             <Card className="bg-blue-50 border-blue-200">
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-6">
                 <div className="flex items-start gap-3">
                   <div className="p-2 bg-blue-100 rounded-lg">
-                    <AlertCircle className="h-5 w-5 text-blue-600" />
+                    <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-blue-900 mb-2">How to Use This Page</h3>
-                    <div className="space-y-2 text-sm text-blue-800">
+                    <h3 className="font-semibold text-blue-900 mb-2 text-sm sm:text-base">How to Use This Page</h3>
+                    <div className="space-y-2 text-xs sm:text-sm text-blue-800">
                       <p><strong>Overview Tab:</strong> See your overall financial performance and key metrics across all budgets.</p>
                       <p><strong>Analytics Tab:</strong> Get detailed insights into your spending patterns, savings trends, and financial recommendations.</p>
                       <p><strong>Budget Details Tab:</strong> Browse and select individual budgets to view detailed breakdowns and analytics.</p>

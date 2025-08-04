@@ -188,13 +188,11 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-center">
-            {isSignUp ? "Create Account" : "Sign In"}
-          </DialogTitle>
-          <DialogDescription className="text-center">
-            Welcome to Zero Budgeting
+          <DialogTitle className="text-xl sm:text-2xl">Welcome to Zero Budgeting</DialogTitle>
+          <DialogDescription className="text-sm sm:text-base">
+            Sign in to access your personalized budgeting tools and financial insights
           </DialogDescription>
         </DialogHeader>
 
@@ -224,16 +222,16 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               <div className="space-y-2">
                 <Label htmlFor="login-email">Email</Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     {...loginForm.register("email")}
                     type="email"
                     placeholder="Enter your email"
-                    className="pl-10"
+                    className="pl-10 h-10 sm:h-11"
                   />
                 </div>
                 {loginForm.formState.errors.email && (
-                  <p className="text-sm text-red-500">
+                  <p className="text-xs sm:text-sm text-red-500">
                     {loginForm.formState.errors.email.message}
                   </p>
                 )}
@@ -242,12 +240,12 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               <div className="space-y-2">
                 <Label htmlFor="login-password">Password</Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     {...loginForm.register("password")}
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
-                    className="pl-10 pr-10"
+                    className="pl-10 pr-10 h-10 sm:h-11"
                   />
                   <Button
                     type="button"
@@ -264,13 +262,13 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   </Button>
                 </div>
                 {loginForm.formState.errors.password && (
-                  <p className="text-sm text-red-500">
+                  <p className="text-xs sm:text-sm text-red-500">
                     {loginForm.formState.errors.password.message}
                   </p>
                 )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full h-10 sm:h-11" disabled={isLoading}>
                 {isLoading ? (
                   <>
                     <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -295,7 +293,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               variant="outline" 
               onClick={handleGoogleSignIn}
               disabled={isLoading}
-              className="w-full"
+              className="w-full h-10 sm:h-11"
             >
               <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                 <path
@@ -322,18 +320,18 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           <TabsContent value="signup" className="space-y-4">
             <form onSubmit={registerForm.handleSubmit(handleSubmit)} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="register-name">Full Name</Label>
+                <Label htmlFor="register-name">Display Name</Label>
                 <div className="relative">
-                  <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     {...registerForm.register("displayName")}
                     type="text"
-                    placeholder="Enter your full name"
-                    className="pl-10"
+                    placeholder="Enter your name"
+                    className="pl-10 h-10 sm:h-11"
                   />
                 </div>
                 {registerForm.formState.errors.displayName && (
-                  <p className="text-sm text-red-500">
+                  <p className="text-xs sm:text-sm text-red-500">
                     {registerForm.formState.errors.displayName.message}
                   </p>
                 )}
@@ -342,16 +340,16 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               <div className="space-y-2">
                 <Label htmlFor="register-email">Email</Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     {...registerForm.register("email")}
                     type="email"
                     placeholder="Enter your email"
-                    className="pl-10"
+                    className="pl-10 h-10 sm:h-11"
                   />
                 </div>
                 {registerForm.formState.errors.email && (
-                  <p className="text-sm text-red-500">
+                  <p className="text-xs sm:text-sm text-red-500">
                     {registerForm.formState.errors.email.message}
                   </p>
                 )}
@@ -360,12 +358,12 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               <div className="space-y-2">
                 <Label htmlFor="register-password">Password</Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     {...registerForm.register("password")}
                     type={showPassword ? "text" : "password"}
                     placeholder="Create a password"
-                    className="pl-10 pr-10"
+                    className="pl-10 pr-10 h-10 sm:h-11"
                   />
                   <Button
                     type="button"
@@ -382,7 +380,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   </Button>
                 </div>
                 {registerForm.formState.errors.password && (
-                  <p className="text-sm text-red-500">
+                  <p className="text-xs sm:text-sm text-red-500">
                     {registerForm.formState.errors.password.message}
                   </p>
                 )}
@@ -391,35 +389,22 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               <div className="space-y-2">
                 <Label htmlFor="register-confirm-password">Confirm Password</Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     {...registerForm.register("confirmPassword")}
                     type={showPassword ? "text" : "password"}
                     placeholder="Confirm your password"
-                    className="pl-10 pr-10"
+                    className="pl-10 h-10 sm:h-11"
                   />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </Button>
                 </div>
                 {registerForm.formState.errors.confirmPassword && (
-                  <p className="text-sm text-red-500">
+                  <p className="text-xs sm:text-sm text-red-500">
                     {registerForm.formState.errors.confirmPassword.message}
                   </p>
                 )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full h-10 sm:h-11" disabled={isLoading}>
                 {isLoading ? (
                   <>
                     <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -444,7 +429,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               variant="outline" 
               onClick={handleGoogleSignIn}
               disabled={isLoading}
-              className="w-full"
+              className="w-full h-10 sm:h-11"
             >
               <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                 <path
