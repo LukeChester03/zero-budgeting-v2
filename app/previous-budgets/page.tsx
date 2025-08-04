@@ -33,11 +33,15 @@ import {
   Award,
   AlertCircle,
   CheckCircle,
-  Clock
+  Clock,
+  Table,
+  List,
+  CreditCard
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { budgetTemplate } from "@/app/utils/template";
 import { useRouter } from "next/navigation";
+import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 // Motion variants
 const containerVariants = {
@@ -60,9 +64,11 @@ const itemVariants = {
 };
 
 export default function PreviousBudgetsPage() {
-  const router = useRouter();
   const { user } = useAuth();
+  const router = useRouter();
   const budgets = useFirebaseStore((s) => s.budgets);
+  const goals = useFirebaseStore((s) => s.goals);
+  const debts = useFirebaseStore((s) => s.debts);
   const deleteBudget = useFirebaseStore((s) => s.deleteBudget);
   const getBudgetTotal = useFirebaseStore((s) => s.getBudgetTotal);
   const getBudgetRemaining = useFirebaseStore((s) => s.getBudgetRemaining);
@@ -70,6 +76,7 @@ export default function PreviousBudgetsPage() {
   const [selectedBudget, setSelectedBudget] = useState<string | null>(null);
   const [showRemaining, setShowRemaining] = useState(true);
   const [sortBy, setSortBy] = useState<"date" | "income" | "savings" | "efficiency">("date");
+  const [viewMode, setViewMode] = useState<"breakdown" | "table">("breakdown");
 
   // Get savings categories
   const savingsCategories = budgetTemplate.find(group => group.title === "Savings & Investments")?.categories || [];
@@ -202,6 +209,193 @@ export default function PreviousBudgetsPage() {
       case "over": return <TrendingDown className="h-4 w-4" />;
       default: return <CheckCircle className="h-4 w-4" />;
     }
+  };
+
+  // Enhanced analytics functions
+  const getSavingsTrend = (budgets: any[]) => {
+    return budgets.slice(0, 6).map(budget => {
+      const insights = getBudgetInsights(budget);
+      return {
+        month: budget.month,
+        savings: insights.savings,
+        savingsRate: insights.savingsRate,
+        totalAllocated: insights.totalAllocated,
+        allocationRate: insights.allocationRate
+      };
+    }).reverse();
+  };
+
+  const getCategoryBreakdown = (budgets: any[]) => {
+    const latestBudget = budgets[0];
+    if (!latestBudget) return [];
+    
+    const categoryTotals: { [key: string]: number } = {};
+    latestBudget.allocations.forEach((allocation: any) => {
+      // Skip savings, investments, goals, and debts - they're not regular expenses
+      if (allocation.category === "Emergency Fund" || 
+          allocation.category === "Investments" || 
+          allocation.category === "Pension" ||
+          // Check if it's a goal (goals are stored by their title)
+          goals.some(g => g.title === allocation.category) ||
+          // Check if it's a debt (debts are stored by their name)
+          debts.some(d => d.name === allocation.category)) {
+        return;
+      }
+      
+      const group = budgetTemplate.find(g => g.categories.includes(allocation.category));
+      const groupName = group?.title || "Other";
+      categoryTotals[groupName] = (categoryTotals[groupName] || 0) + allocation.amount;
+    });
+    
+    return Object.entries(categoryTotals)
+      .filter(([, amount]) => amount > 0)
+      .map(([category, amount]) => ({
+        name: category,
+        value: amount,
+        percentage: (amount / latestBudget.income) * 100
+      }))
+      .sort((a, b) => b.value - a.value);
+  };
+
+  const getBudgetEfficiency = (budgets: any[]) => {
+    return budgets.slice(0, 6).map(budget => {
+      const insights = getBudgetInsights(budget);
+      return {
+        month: budget.month,
+        efficiency: insights.allocationRate,
+        savingsRate: insights.savingsRate,
+        overBudget: insights.status === "over"
+      };
+    }).reverse();
+  };
+
+  const getAverageSavingsRate = (budgets: any[]) => {
+    if (budgets.length === 0) return 0;
+    const totalRate = budgets.reduce((sum, budget) => {
+      const insights = getBudgetInsights(budget);
+      return sum + insights.savingsRate;
+    }, 0);
+    return totalRate / budgets.length;
+  };
+
+  const getTotalSavings = (budgets: any[]) => {
+    return budgets.reduce((sum, budget) => {
+      const insights = getBudgetInsights(budget);
+      return sum + insights.savings;
+    }, 0);
+  };
+
+  const getMostExpensiveCategory = (budgets: any[]) => {
+    const latestBudget = budgets[0];
+    if (!latestBudget) return null;
+    
+    const categoryTotals: { [key: string]: number } = {};
+    latestBudget.allocations.forEach((allocation: any) => {
+      // Skip savings, investments, goals, and debts - they're not regular expenses
+      if (allocation.category === "Emergency Fund" || 
+          allocation.category === "Investments" || 
+          allocation.category === "Pension" ||
+          // Check if it's a goal (goals are stored by their title)
+          goals.some(g => g.title === allocation.category) ||
+          // Check if it's a debt (debts are stored by their name)
+          debts.some(d => d.name === allocation.category)) {
+        return;
+      }
+      
+      const group = budgetTemplate.find(g => g.categories.includes(allocation.category));
+      const groupName = group?.title || "Other";
+      categoryTotals[groupName] = (categoryTotals[groupName] || 0) + allocation.amount;
+    });
+    
+    const maxCategory = Object.entries(categoryTotals)
+      .reduce((max, [category, amount]) => amount > max.amount ? { category, amount } : max, { category: "", amount: 0 });
+    
+    return maxCategory;
+  };
+
+  const getExpenseTrend = (budgets: any[]) => {
+    return budgets.slice(0, 6).map(budget => {
+      // Calculate total expenses (excluding savings/investments, goals, and debts)
+      const totalExpenses = budget.allocations.reduce((sum: number, allocation: any) => {
+        if (allocation.category === "Emergency Fund" || 
+            allocation.category === "Investments" || 
+            allocation.category === "Pension" ||
+            // Check if it's a goal (goals are stored by their title)
+            goals.some(g => g.title === allocation.category) ||
+            // Check if it's a debt (debts are stored by their name)
+            debts.some(d => d.name === allocation.category)) {
+          return sum;
+        }
+        return sum + allocation.amount;
+      }, 0);
+      
+      const insights = getBudgetInsights(budget);
+      return {
+        month: budget.month,
+        expenses: totalExpenses,
+        savings: insights.savings,
+        expenseRate: (totalExpenses / budget.income) * 100,
+        savingsRate: insights.savingsRate
+      };
+    }).reverse();
+  };
+
+  const getGoalAllocations = (budgets: any[]) => {
+    const latestBudget = budgets[0];
+    if (!latestBudget) return [];
+    
+    return latestBudget.allocations
+      .filter((allocation: any) => goals.some((g: any) => g.title === allocation.category))
+      .map((allocation: any) => {
+        const goal = goals.find((g: any) => g.title === allocation.category);
+        return {
+          name: allocation.category,
+          value: allocation.amount,
+          target: goal?.target || 0,
+          monthlyContribution: goal?.monthlyContribution || 0
+        };
+      })
+      .sort((a: any, b: any) => b.value - a.value);
+  };
+
+  const getDebtAllocations = (budgets: any[]) => {
+    const latestBudget = budgets[0];
+    if (!latestBudget) return [];
+    
+    return latestBudget.allocations
+      .filter((allocation: any) => debts.some((d: any) => d.name === allocation.category))
+      .map((allocation: any) => {
+        const debt = debts.find((d: any) => d.name === allocation.category);
+        return {
+          name: allocation.category,
+          value: allocation.amount,
+          totalAmount: debt?.totalAmount || 0,
+          monthlyRepayment: debt?.monthlyRepayment || 0
+        };
+      })
+      .sort((a: any, b: any) => b.value - a.value);
+  };
+
+  const getTotalGoalAllocations = (budgets: any[]) => {
+    return budgets.reduce((sum: number, budget: any) => {
+      return sum + budget.allocations.reduce((budgetSum: number, allocation: any) => {
+        if (goals.some((g: any) => g.title === allocation.category)) {
+          return budgetSum + allocation.amount;
+        }
+        return budgetSum;
+      }, 0);
+    }, 0);
+  };
+
+  const getTotalDebtAllocations = (budgets: any[]) => {
+    return budgets.reduce((sum: number, budget: any) => {
+      return sum + budget.allocations.reduce((budgetSum: number, allocation: any) => {
+        if (debts.some((d: any) => d.name === allocation.category)) {
+          return budgetSum + allocation.amount;
+        }
+        return budgetSum;
+      }, 0);
+    }, 0);
   };
 
   // Check if user is authenticated
@@ -571,6 +765,21 @@ export default function PreviousBudgetsPage() {
                                   </span>
                                 </div>
 
+                                {/* Over Budget Reason */}
+                                {budget.overBudgetReason && insights.status === "over" && (
+                                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                                    <div className="flex items-start gap-2">
+                                      <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                                      <div className="space-y-1">
+                                        <p className="text-xs font-medium text-amber-800">Over Budget Reason</p>
+                                        <p className="text-xs text-amber-700">{budget.overBudgetReason}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                
+                  
+
                                 <div className="flex items-center justify-between text-sm">
                                   <span className="text-muted-foreground">Savings Rate</span>
                                   <span className="font-medium text-green-600">
@@ -596,81 +805,425 @@ export default function PreviousBudgetsPage() {
 
               {/* Analytics Tab */}
               <TabsContent value="analytics" className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <TrendingUp className="h-5 w-5" />
-                        Income Trends
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {sortedBudgets.slice(0, 6).map((budget, index) => {
-                          const prevBudget = sortedBudgets[index + 1];
-                          const change = prevBudget ? ((budget.income - prevBudget.income) / prevBudget.income) * 100 : 0;
-                          
-                          return (
-                            <div key={budget.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                              <div>
-                                <div className="font-medium">{budget.month}</div>
-                                <div className="text-sm text-muted-foreground">£{budget.income.toFixed(2)}</div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {change !== 0 && (
-                                  <>
-                                    {change > 0 ? (
-                                      <ArrowUpRight className="h-4 w-4 text-green-600" />
-                                    ) : (
-                                      <ArrowDownRight className="h-4 w-4 text-red-600" />
-                                    )}
-                                    <span className={cn("text-sm font-medium", change > 0 ? "text-green-600" : "text-red-600")}>
-                                      {Math.abs(change).toFixed(1)}%
-                                    </span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
+                {/* Summary Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                  <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-green-100 rounded-lg">
+                          <PiggyBank className="h-5 w-5 text-green-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-green-700 font-medium">Total Savings</p>
+                          <p className="text-2xl font-bold text-green-800">
+                            £{getTotalSavings(sortedBudgets).toFixed(2)}
+                          </p>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <PieChart className="h-5 w-5" />
-                        Savings Performance
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {sortedBudgets.slice(0, 6).map((budget) => {
-                          const insights = getBudgetInsights(budget);
-                          const savingsRate = (insights.savings / budget.income) * 100;
-                          
-                          return (
-                            <div key={budget.id} className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium">{budget.month}</span>
-                                <span className="text-sm text-green-600 font-medium">
-                                  £{insights.savings.toFixed(2)}
-                                </span>
-                              </div>
-                              <div className="space-y-1">
-                                <Progress value={savingsRate} className="h-2" />
-                                <div className="text-xs text-muted-foreground">
-                                  {savingsRate.toFixed(1)}% savings rate
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
+                  <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                          <Target className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-blue-700 font-medium">Avg Savings Rate</p>
+                          <p className="text-2xl font-bold text-blue-800">
+                            {getAverageSavingsRate(sortedBudgets).toFixed(1)}%
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-purple-100 rounded-lg">
+                          <BarChart3 className="h-5 w-5 text-purple-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-purple-700 font-medium">Budgets Created</p>
+                          <p className="text-2xl font-bold text-purple-800">
+                            {sortedBudgets.length}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-orange-100 rounded-lg">
+                          <DollarSign className="h-5 w-5 text-orange-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-orange-700 font-medium">Top Category</p>
+                          <p className="text-lg font-bold text-orange-800">
+                            {getMostExpensiveCategory(sortedBudgets)?.category || "N/A"}
+                          </p>
+                          <p className="text-xs text-orange-600">
+                            £{getMostExpensiveCategory(sortedBudgets)?.amount.toFixed(2) || "0.00"}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-green-100 rounded-lg">
+                          <Target className="h-5 w-5 text-green-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-green-700 font-medium">Goal Allocations</p>
+                          <p className="text-2xl font-bold text-green-800">
+                            £{getTotalGoalAllocations(sortedBudgets).toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-red-100 rounded-lg">
+                          <CreditCard className="h-5 w-5 text-red-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-red-700 font-medium">Debt Allocations</p>
+                          <p className="text-2xl font-bold text-red-800">
+                            £{getTotalDebtAllocations(sortedBudgets).toFixed(2)}
+                          </p>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
                 </div>
+
+                {/* Charts Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Savings Trend Chart */}
+                  <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <TrendingUp className="h-5 w-5" />
+                        Savings Trend
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <AreaChart data={getSavingsTrend(sortedBudgets)}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                          <XAxis 
+                            dataKey="month" 
+                            tick={{ fontSize: 12 }}
+                            tickFormatter={(value) => value.split(' ')[0]}
+                          />
+                          <YAxis tick={{ fontSize: 12 }} />
+                          <Tooltip 
+                            formatter={(value: any) => [`£${value.toFixed(2)}`, 'Savings']}
+                            labelFormatter={(label) => `Month: ${label}`}
+                          />
+                          <Area 
+                            type="monotone" 
+                            dataKey="savings" 
+                            stroke="#10b981" 
+                            fill="#10b981" 
+                            fillOpacity={0.3}
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  {/* Budget Efficiency Chart */}
+                  <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Award className="h-5 w-5" />
+                        Budget Efficiency
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={getBudgetEfficiency(sortedBudgets)}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                          <XAxis 
+                            dataKey="month" 
+                            tick={{ fontSize: 12 }}
+                            tickFormatter={(value) => value.split(' ')[0]}
+                          />
+                          <YAxis tick={{ fontSize: 12 }} />
+                          <Tooltip 
+                            formatter={(value: any) => [`${value.toFixed(1)}%`, 'Rate']}
+                            labelFormatter={(label) => `Month: ${label}`}
+                          />
+                          <Bar dataKey="efficiency" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="savingsRate" fill="#10b981" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                      <div className="flex items-center justify-center gap-4 mt-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 bg-blue-500 rounded"></div>
+                          <span className="text-sm text-muted-foreground">Allocation Rate</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 bg-green-500 rounded"></div>
+                          <span className="text-sm text-muted-foreground">Savings Rate</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Category Breakdown Pie Chart */}
+                  <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <RechartsPieChart className="h-5 w-5" />
+                        Category Breakdown
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <RechartsPieChart>
+                          <Pie
+                            data={getCategoryBreakdown(sortedBudgets)}
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={80}
+                            dataKey="value"
+                            label={({ name, percentage }) => `${name} ${percentage.toFixed(1)}%`}
+                            labelLine={false}
+                          >
+                            {getCategoryBreakdown(sortedBudgets).map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={[
+                                '#3b82f6', '#10b981', '#f59e0b', '#ef4444', 
+                                '#8b5cf6', '#06b6d4', '#84cc16', '#f97316'
+                              ][index % 8]} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value: any) => [`£${value.toFixed(2)}`, 'Amount']} />
+                        </RechartsPieChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  {/* Goal & Debt Allocations Chart */}
+                  <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Target className="h-5 w-5" />
+                        Goal & Debt Allocations
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={getSavingsTrend(sortedBudgets)}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                          <XAxis 
+                            dataKey="month" 
+                            tick={{ fontSize: 12 }}
+                            tickFormatter={(value) => value.split(' ')[0]}
+                          />
+                          <YAxis tick={{ fontSize: 12 }} />
+                          <Tooltip 
+                            formatter={(value: any) => [`£${value.toFixed(2)}`, 'Amount']}
+                            labelFormatter={(label) => `Month: ${label}`}
+                          />
+                          <Bar dataKey="totalAllocated" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="savings" fill="#10b981" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                      <div className="flex items-center justify-center gap-4 mt-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 bg-blue-500 rounded"></div>
+                          <span className="text-sm text-muted-foreground">Total Allocated</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 bg-green-500 rounded"></div>
+                          <span className="text-sm text-muted-foreground">Savings</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Monthly Comparison */}
+                  <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <BarChart3 className="h-5 w-5" />
+                        Expense vs Savings
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={getExpenseTrend(sortedBudgets)}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                          <XAxis 
+                            dataKey="month" 
+                            tick={{ fontSize: 12 }}
+                            tickFormatter={(value) => value.split(' ')[0]}
+                          />
+                          <YAxis tick={{ fontSize: 12 }} />
+                          <Tooltip 
+                            formatter={(value: any) => [`${value.toFixed(1)}%`, 'Rate']}
+                            labelFormatter={(label) => `Month: ${label}`}
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="expenseRate" 
+                            stroke="#ef4444" 
+                            strokeWidth={3}
+                            dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
+                            name="Expense Rate"
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="savingsRate" 
+                            stroke="#10b981" 
+                            strokeWidth={3}
+                            dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
+                            name="Savings Rate"
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                      <div className="flex items-center justify-center gap-4 mt-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 bg-red-500 rounded"></div>
+                          <span className="text-sm text-muted-foreground">Expense Rate</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 bg-green-500 rounded"></div>
+                          <span className="text-sm text-muted-foreground">Savings Rate</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Insights Section */}
+                <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Award className="h-5 w-5" />
+                      Financial Insights
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-green-700">Savings Performance</h4>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">Best Month</span>
+                            <span className="font-medium">
+                              {getSavingsTrend(sortedBudgets).reduce((max, item) => 
+                                item.savingsRate > max.savingsRate ? item : max
+                              ).month}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">Average Monthly Savings</span>
+                            <span className="font-medium">
+                              £{(getTotalSavings(sortedBudgets) / Math.max(sortedBudgets.length, 1)).toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">Total Saved</span>
+                            <span className="font-medium text-green-600">
+                              £{getTotalSavings(sortedBudgets).toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">Goal Allocations</span>
+                            <span className="font-medium text-green-600">
+                              £{getTotalGoalAllocations(sortedBudgets).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-red-700">Expense Analysis</h4>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">Average Monthly Expenses</span>
+                            <span className="font-medium">
+                              £{(getExpenseTrend(sortedBudgets).reduce((sum, item) => sum + item.expenses, 0) / Math.max(sortedBudgets.length, 1)).toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">Largest Expense Category</span>
+                            <span className="font-medium">
+                              {getMostExpensiveCategory(sortedBudgets)?.category || "N/A"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">Expense Categories</span>
+                            <span className="font-medium">
+                              {getCategoryBreakdown(sortedBudgets).length}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">Debt Allocations</span>
+                            <span className="font-medium text-red-600">
+                              £{getTotalDebtAllocations(sortedBudgets).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-blue-700">Budget Management</h4>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">Consistency Score</span>
+                            <span className="font-medium">
+                              {((sortedBudgets.filter(budget => {
+                                const insights = getBudgetInsights(budget);
+                                return insights.allocationRate >= 90 && insights.allocationRate <= 110;
+                              }).length / Math.max(sortedBudgets.length, 1)) * 100).toFixed(0)}%
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">Over-Budget Months</span>
+                            <span className="font-medium text-red-600">
+                              {sortedBudgets.filter(budget => {
+                                const insights = getBudgetInsights(budget);
+                                return insights.status === "over";
+                              }).length}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">Total Budgets</span>
+                            <span className="font-medium">
+                              {sortedBudgets.length}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">Active Goals</span>
+                            <span className="font-medium">
+                              {goals.filter(g => g.isActive).length}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">Active Debts</span>
+                            <span className="font-medium">
+                              {debts.filter(d => d.isActive).length}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               {/* Details Tab */}
@@ -695,6 +1248,28 @@ export default function PreviousBudgetsPage() {
                             group.categories.includes(a.category)
                           )
                         }));
+
+                        // Add goals and debts as separate groups
+                        const goalAllocations = budget.allocations.filter(a => 
+                          goals.some(g => g.title === a.category)
+                        );
+                        const debtAllocations = budget.allocations.filter(a => 
+                          debts.some(d => d.name === a.category)
+                        );
+
+                        const allGroups = [
+                          ...categoryGroups,
+                          ...(goalAllocations.length > 0 ? [{
+                            title: "Goals",
+                            categories: goalAllocations.map(a => a.category),
+                            allocations: goalAllocations
+                          }] : []),
+                          ...(debtAllocations.length > 0 ? [{
+                            title: "Debts", 
+                            categories: debtAllocations.map(a => a.category),
+                            allocations: debtAllocations
+                          }] : [])
+                        ];
 
                         return (
                           <div className="space-y-6">
@@ -724,28 +1299,126 @@ export default function PreviousBudgetsPage() {
                             <Separator />
 
                             <div className="space-y-4">
-                              <h3 className="text-lg font-semibold">Category Breakdown</h3>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {categoryGroups.map(group => {
-                                  const total = group.allocations.reduce((sum, a) => sum + a.amount, 0);
-                                  const percentage = (total / budget.income) * 100;
-                                  
-                                  if (total === 0) return null;
-                                  
-                                  return (
-                                    <div key={group.title} className="space-y-2">
-                                      <div className="flex items-center justify-between">
-                                        <span className="font-medium">{group.title}</span>
-                                        <span className="text-sm font-medium">£{total.toFixed(2)}</span>
-                                      </div>
-                                      <Progress value={percentage} className="h-2" />
-                                      <div className="text-xs text-muted-foreground">
-                                        {percentage.toFixed(1)}% of income
-                                      </div>
-                                    </div>
-                                  );
-                                })}
+                              <div className="flex items-center justify-between">
+                                <h3 className="text-lg font-semibold">Category Breakdown</h3>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant={viewMode === "breakdown" ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => setViewMode("breakdown")}
+                                    className="flex items-center gap-2"
+                                  >
+                                    <List className="h-4 w-4" />
+                                    Breakdown
+                                  </Button>
+                                  <Button
+                                    variant={viewMode === "table" ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => setViewMode("table")}
+                                    className="flex items-center gap-2"
+                                  >
+                                    <Table className="h-4 w-4" />
+                                    Table
+                                  </Button>
+                                </div>
                               </div>
+
+                              {viewMode === "breakdown" ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {allGroups.map(group => {
+                                    const total = group.allocations.reduce((sum, a) => sum + a.amount, 0);
+                                    const percentage = (total / budget.income) * 100;
+                                    
+                                    if (total === 0) return null;
+                                    
+                                    return (
+                                      <div key={group.title} className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                          <span className="font-medium">{group.title}</span>
+                                          <span className="text-sm font-medium">£{total.toFixed(2)}</span>
+                                        </div>
+                                        <Progress value={percentage} className="h-2" />
+                                        <div className="text-xs text-muted-foreground">
+                                          {percentage.toFixed(1)}% of income
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <div className="space-y-4">
+                                  <div className="rounded-lg border">
+                                    <div className="bg-muted/50 px-4 py-3 border-b">
+                                      <h4 className="font-medium">All Expenses</h4>
+                                    </div>
+                                    <div className="overflow-hidden">
+                                      <table className="w-full">
+                                        <thead className="bg-muted/30">
+                                          <tr>
+                                            <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
+                                              Category
+                                            </th>
+                                            <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
+                                              Group
+                                            </th>
+                                            <th className="text-right px-4 py-3 text-sm font-medium text-muted-foreground">
+                                              Amount
+                                            </th>
+                                            <th className="text-right px-4 py-3 text-sm font-medium text-muted-foreground">
+                                              % of Income
+                                            </th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y">
+                                          {budget.allocations
+                                            .filter(allocation => allocation.amount > 0)
+                                            .sort((a, b) => b.amount - a.amount)
+                                            .map((allocation, index) => {
+                                              const percentage = (allocation.amount / budget.income) * 100;
+                                              const categoryGroup = categoryGroups.find(group => 
+                                                group.categories.includes(allocation.category)
+                                              );
+                                              
+                                              // Check if it's a goal or debt
+                                              const isGoal = goals.some(g => g.title === allocation.category);
+                                              const isDebt = debts.some(d => d.name === allocation.category);
+                                              
+                                              let groupTitle = categoryGroup?.title || "Other";
+                                              if (isGoal) groupTitle = "Goals";
+                                              if (isDebt) groupTitle = "Debts";
+                                              
+                                              return (
+                                                <tr key={index} className="hover:bg-muted/30 transition-colors">
+                                                  <td className="px-4 py-3">
+                                                    <div className="font-medium">{allocation.category}</div>
+                                                  </td>
+                                                  <td className="px-4 py-3">
+                                                    <div className="text-sm text-muted-foreground">
+                                                      {groupTitle}
+                                                    </div>
+                                                  </td>
+                                                  <td className="px-4 py-3 text-right">
+                                                    <div className="font-medium">£{allocation.amount.toFixed(2)}</div>
+                                                  </td>
+                                                  <td className="px-4 py-3 text-right">
+                                                    <div className="text-sm text-muted-foreground">
+                                                      {percentage.toFixed(1)}%
+                                                    </div>
+                                                  </td>
+                                                </tr>
+                                              );
+                                            })}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="text-sm text-muted-foreground text-center">
+                                    {budget.allocations.filter(a => a.amount > 0).length} categories • 
+                                    Total: £{budget.allocations.reduce((sum, a) => sum + a.amount, 0).toFixed(2)}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         );

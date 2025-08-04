@@ -12,6 +12,7 @@ export interface Budget {
   month: string;
   income: number;
   allocations: Allocation[];
+  overBudgetReason?: string;
   createdAt?: any;
   updatedAt?: any;
 }

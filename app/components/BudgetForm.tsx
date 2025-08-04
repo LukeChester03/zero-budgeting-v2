@@ -98,7 +98,11 @@ import {
   Eye,
   EyeOff,
   Bookmark,
+  X,
+  AlertTriangle,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 // Category icons mapping
 const CATEGORY_ICONS: { [key: string]: React.ReactNode } = {
@@ -143,8 +147,7 @@ export default function BudgetForm() {
   const getBudgetRemaining = useFirebaseStore((s) => s.getBudgetRemaining);
   const getCustomCategories = useFirebaseStore((s) => s.getCustomCategories);
   const addCustomCategory = useFirebaseStore((s) => s.addCustomCategory);
-  const allocateGoalContributions = useFirebaseStore((s) => s.allocateGoalContributions);
-  const allocateDebtPayments = useFirebaseStore((s) => s.allocateDebtPayments);
+  const removeCustomCategoryFromStore = useFirebaseStore((s) => s.removeCustomCategory);
   const debts = useFirebaseStore((s) => s.debts);
   const budgets = useFirebaseStore((s) => s.budgets);
   const goals = useFirebaseStore((s) => s.goals);
@@ -160,6 +163,10 @@ export default function BudgetForm() {
   const [availableMonthsList, setAvailableMonthsList] = useState<string[]>([]);
   const [showRemaining, setShowRemaining] = useState(false);
   const [saveTemplateModalOpen, setSaveTemplateModalOpen] = useState(false);
+  const [overBudgetModalOpen, setOverBudgetModalOpen] = useState(false);
+  const [overBudgetReason, setOverBudgetReason] = useState("");
+  const [pendingBudgetData, setPendingBudgetData] = useState<any>(null);
+  const [budgetSaved, setBudgetSaved] = useState(false);
 
   // Get available months for budget selection
   const availableMonths = useMemo(() => {
@@ -400,26 +407,31 @@ export default function BudgetForm() {
     if (!isEditing && currentBudget) return;
 
     setAmounts(prev => ({ ...prev, [category]: parseFloat(value) || 0 }));
+    setBudgetSaved(false); // Reset saved state when amounts change
   };
 
   const handleMonthChange = (month: string) => {
     setSelectedMonth(month);
     setSelectedBudget(null);
     setIsEditing(false);
+    setBudgetSaved(false);
   };
 
   const handleBudgetSelect = (budgetId: string) => {
     setSelectedBudget(budgetId);
     setIsEditing(false);
+    setBudgetSaved(false);
   };
 
   const handleCreateNew = () => {
     setSelectedBudget(null);
     setIsEditing(false);
+    setBudgetSaved(false);
   };
 
   const handleEditBudget = () => {
     setIsEditing(true);
+    setBudgetSaved(false);
   };
 
   const handleSaveBudget = async () => {
@@ -441,7 +453,9 @@ export default function BudgetForm() {
       return;
     }
 
-    if (currentBudget && !isEditing) {
+    // Check if budget already exists for this month
+    const existingBudget = budgets.find(b => b.month === selectedMonth);
+    if (existingBudget && !isEditing) {
       toast({
         title: "Error",
         description: "A budget already exists for this month. Please edit the existing budget.",
@@ -451,53 +465,49 @@ export default function BudgetForm() {
     }
 
     const allocations = allocationsArray.filter(a => a.amount > 0);
-    
+    const budgetData = {
+      month: selectedMonth,
+      income,
+      allocations,
+    };
+
+    // Check if over budget
+    if (remaining < 0) {
+      setPendingBudgetData(budgetData);
+      setOverBudgetModalOpen(true);
+      return;
+    }
+
+    await saveBudgetData(budgetData);
+  };
+
+  const saveBudgetData = async (budgetData: any) => {
     try {
+      const budgetWithReason = {
+        ...budgetData,
+        overBudgetReason: remaining < 0 ? overBudgetReason : undefined,
+      };
+
+      console.log('Saving budget with data:', budgetWithReason);
+      console.log('Remaining amount:', remaining);
+      console.log('Over budget reason:', overBudgetReason);
+
       if (currentBudget && isEditing) {
         // Update existing budget
-        await addBudget({
-          month: selectedMonth,
-          income,
-          allocations,
-        });
-        toast({
-          title: "Success",
-          description: "Budget updated successfully!",
-        });
+        await addBudget(budgetWithReason);
+        console.log('Budget updated successfully');
       } else {
-        // Create new budget with goal allocations
-        const budgetData = {
-          month: selectedMonth,
-          income,
-          allocations,
-        };
-        
-        // Allocate goal contributions and debt payments if there are active goals or debts
-        const activeGoals = goals.filter(g => g.isActive);
-        const activeDebts = debts.filter(d => d.isActive);
-        
-        if (activeGoals.length > 0 || activeDebts.length > 0) {
-          // Allocate both goals and debts
-          if (activeGoals.length > 0) {
-            await allocateGoalContributions(budgetData);
-          }
-          if (activeDebts.length > 0) {
-            await allocateDebtPayments(budgetData);
-          }
-          toast({
-            title: "Success",
-            description: "Budget created successfully with goal and debt allocations!",
-          });
-        } else {
-          await addBudget(budgetData);
-          toast({
-            title: "Success",
-            description: "Budget created successfully!",
-          });
-        }
+        // Create new budget - allocations are already included in budgetData
+        await addBudget(budgetWithReason);
+        console.log('Budget created successfully');
       }
 
       setIsEditing(false);
+      setOverBudgetModalOpen(false);
+      setOverBudgetReason("");
+      setPendingBudgetData(null);
+      setBudgetSaved(true);
+      setTimeout(() => setBudgetSaved(false), 3000); // Hide saved message after 3 seconds
     } catch (error) {
       console.error('Error saving budget:', error);
       toast({
@@ -552,6 +562,23 @@ export default function BudgetForm() {
       newAmounts[category] = 0;
     });
     setAmounts(newAmounts);
+  };
+
+  const handleRemoveCustomCategory = async (sectionTitle: string, categoryName: string) => {
+    try {
+      await removeCustomCategoryFromStore(sectionTitle, categoryName);
+      toast({
+        title: "Success",
+        description: `Custom category "${categoryName}" removed from "${sectionTitle}"!`,
+      });
+    } catch (error) {
+      console.error('Error removing custom category:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove custom category. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -941,13 +968,13 @@ export default function BudgetForm() {
                        </div>
                      </CardHeader>
                      <CardContent className="space-y-4">
-                       {/* Custom Category Manager */}
-                         <CustomCategoryManager 
-                           section={section.title} 
-                           title="Custom Categories" 
-                         />
-                         
-                         <div className="grid grid-cols-2 gap-4">
+                       {/* Custom Category Manager - moved to top of section */}
+                       <CustomCategoryManager 
+                         section={section.title} 
+                         title="Custom Categories" 
+                       />
+                       
+                       <div className="grid grid-cols-2 gap-4">
                 {userCategories.map((cat) => {
                   // Check if this is a goal category
                   const isGoalCategory = section.title === "Goals";
@@ -962,41 +989,30 @@ export default function BudgetForm() {
                         <Label className="text-sm font-medium">
                           {cat}
                         </Label>
-                        {isGoalCategory && goal && (
-                          <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1">
+                          {isGoalCategory && goal && (
                             <Badge variant="outline" className="text-xs">
                               Goal
                             </Badge>
-                            {!isEditable ? (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => toggleGoalEdit(cat)}
-                                className="h-6 px-2 text-xs"
-                              >
-                                Edit
-                              </Button>
-                            ) : (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => toggleGoalEdit(cat)}
-                                className="h-6 px-2 text-xs text-green-600"
-                              >
-                                Save
-                              </Button>
-                            )}
-                          </div>
-                        )}
-                        {isDebtCategory && debt && (
-                          <div className="flex items-center gap-1">
+                          )}
+                          {isDebtCategory && debt && (
                             <Badge variant="outline" className="text-xs text-red-600 border-red-300">
                               Debt
                             </Badge>
-                          </div>
-                        )}
+                          )}
+                          {/* Remove button for custom categories */}
+                          {custom.includes(cat) && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveCustomCategory(section.title, cat)}
+                              className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                       <div className="relative">
                         <Input
@@ -1204,14 +1220,23 @@ export default function BudgetForm() {
           <RotateCcw className="h-4 w-4 mr-2" />
           Reset to Previous
         </Button>
-        <Button
-          onClick={handleSaveBudget}
-          disabled={!selectedMonth || (!!currentBudget && !isEditing)}
-          className="bg-primary hover:bg-primary/90"
-        >
-          <Save className="h-4 w-4 mr-2" />
-          {currentBudget && isEditing ? "Update Budget" : "Save Budget"}
-        </Button>
+        <div className="flex flex-col items-end gap-1">
+          <Button
+            onClick={handleSaveBudget}
+            disabled={!selectedMonth || (!!currentBudget && !isEditing) || budgetSaved}
+            className={cn(
+              "bg-primary hover:bg-primary/90",
+              remaining < 0 && "bg-amber-600 hover:bg-amber-700",
+              budgetSaved && "bg-green-600 hover:bg-green-700 cursor-not-allowed"
+            )}
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {budgetSaved ? "Budget Saved" : (currentBudget && isEditing ? "Update Budget" : "Save Budget")}
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            {totalAllocated > 0 ? `£${totalAllocated.toFixed(2)} allocated` : "No allocations"}
+          </p>
+        </div>
       </motion.div>
 
       {/* Save Template Modal */}
@@ -1221,6 +1246,50 @@ export default function BudgetForm() {
         currentAllocations={allocationsArray}
         currentMonth={selectedMonth}
       />
+
+      {/* Over Budget Modal */}
+      <Dialog open={overBudgetModalOpen} onOpenChange={setOverBudgetModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              Over Budget Warning
+            </DialogTitle>
+            <DialogDescription>
+              You are over budget by £{Math.abs(remaining).toFixed(2)}. Please provide a reason (optional) and confirm you want to proceed.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="over-budget-reason">Reason for going over budget (optional)</Label>
+              <Textarea
+                id="over-budget-reason"
+                value={overBudgetReason}
+                onChange={(e) => setOverBudgetReason(e.target.value)}
+                placeholder="e.g., Unexpected car repair, medical expenses..."
+                className="min-h-[80px]"
+              />
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <p className="text-sm text-amber-800">
+                <strong>Warning:</strong> Going over budget may impact your financial goals. 
+                Are you sure you want to proceed with this budget?
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOverBudgetModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => pendingBudgetData && saveBudgetData(pendingBudgetData)}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              Yes, Save Budget
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }

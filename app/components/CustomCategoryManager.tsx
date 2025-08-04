@@ -75,30 +75,9 @@ export default function CustomCategoryManager({ section, title }: CustomCategory
         </Button>
       </div>
       
-      {categories.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {categories.map((category) => (
-            <Badge
-              key={category}
-              variant="secondary"
-              className="flex items-center gap-1 px-2 py-1"
-            >
-              <span className="text-xs">{category}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
-                onClick={() => handleRemoveCategory(category)}
-                disabled={isRemoving === category}
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            </Badge>
-          ))}
-        </div>
-      ) : (
-        <p className="text-xs text-muted-foreground italic">
-          No custom categories added yet
+      {categories.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {categories.length} custom categor{categories.length === 1 ? 'y' : 'ies'} added
         </p>
       )}
 
