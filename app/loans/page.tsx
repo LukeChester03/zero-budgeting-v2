@@ -497,31 +497,31 @@ export default function LoansPage() {
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent" />
-        <div className="relative container mx-auto px-6 py-24">
-          <motion.div variants={itemVariants} className="text-center mb-12">
-            <div className="flex items-center justify-center gap-2 mb-6">
-              <CreditCard className="h-8 w-8 text-primary" />
-              <h1 className="text-4xl md:text-6xl font-bold text-primary">
+        <div className="relative container mx-auto px-3 sm:px-6 py-16 sm:py-24">
+          <motion.div variants={itemVariants} className="text-center mb-8 sm:mb-12">
+            <div className="flex items-center justify-center gap-2 mb-4 sm:mb-6">
+              <CreditCard className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+              <h1 className="text-2xl sm:text-4xl md:text-6xl font-bold text-primary">
                 Debt Management
               </h1>
             </div>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-base sm:text-xl text-muted-foreground max-w-2xl mx-auto">
               Track your debts, analyze repayment strategies, and work towards financial freedom
             </p>
           </motion.div>
 
           {/* Key Metrics */}
-          <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
             {debts.length === 0 ? (
-              <Card className="md:col-span-4 bg-background/80 backdrop-blur-sm border-primary/20">
-                <CardContent className="p-8 text-center">
-                  <CreditCard className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
-                  <h3 className="text-xl font-semibold mb-2">No Debts Added</h3>
-                  <p className="text-muted-foreground mb-4">
+              <Card className="col-span-2 md:col-span-4 bg-background/80 backdrop-blur-sm border-primary/20">
+                <CardContent className="p-4 sm:p-8 text-center">
+                  <CreditCard className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-3 sm:mb-4 text-muted-foreground opacity-50" />
+                  <h3 className="text-lg sm:text-xl font-semibold mb-2">No Debts Added</h3>
+                  <p className="text-sm sm:text-base text-muted-foreground mb-4">
                     You're currently debt-free! Add your first debt to start tracking your repayment journey.
                   </p>
-                  <Button onClick={() => setIsAddDebtModalOpen(true)} className="bg-primary hover:bg-primary/90">
-                    <Plus className="h-4 w-4 mr-2" />
+                  <Button onClick={() => setIsAddDebtModalOpen(true)} className="bg-primary hover:bg-primary/90 text-xs sm:text-sm">
+                    <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                     Add Your First Debt
                   </Button>
                 </CardContent>
@@ -529,56 +529,56 @@ export default function LoansPage() {
             ) : (
               <>
                 <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-primary/10 rounded-lg">
-                        <DollarSign className="h-6 w-6 text-primary" />
+                  <CardContent className="p-3 sm:p-6">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg">
+                        <DollarSign className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">Total Debt</p>
-                        <p className="text-2xl font-bold">£{debtData.totalDebt.toFixed(2)}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">Total Debt</p>
+                        <p className="text-lg sm:text-2xl font-bold">£{debtData.totalDebt.toFixed(2)}</p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
 
                 <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-primary/10 rounded-lg">
-                        <TrendingDown className="h-6 w-6 text-primary" />
+                  <CardContent className="p-3 sm:p-6">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg">
+                        <TrendingDown className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">Remaining</p>
-                        <p className="text-2xl font-bold">£{debtData.totalRemaining.toFixed(2)}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">Remaining</p>
+                        <p className="text-lg sm:text-2xl font-bold">£{debtData.totalRemaining.toFixed(2)}</p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
 
                 <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-primary/10 rounded-lg">
-                        <Calendar className="h-6 w-6 text-primary" />
+                  <CardContent className="p-3 sm:p-6">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg">
+                        <Calendar className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">Monthly Payments</p>
-                        <p className="text-2xl font-bold">£{debtData.totalMonthlyPayments.toFixed(2)}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">Monthly Payments</p>
+                        <p className="text-lg sm:text-2xl font-bold">£{debtData.totalMonthlyPayments.toFixed(2)}</p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
 
                 <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-primary/10 rounded-lg">
-                        <Percent className="h-6 w-6 text-primary" />
+                  <CardContent className="p-3 sm:p-6">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg">
+                        <Percent className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">Avg Interest</p>
-                        <p className="text-2xl font-bold">{debtData.averageInterestRate.toFixed(1)}%</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">Avg Interest</p>
+                        <p className="text-lg sm:text-2xl font-bold">{debtData.averageInterestRate.toFixed(1)}%</p>
                       </div>
                     </div>
                   </CardContent>
@@ -589,18 +589,18 @@ export default function LoansPage() {
         </div>
       </section>
 
-      <div className="container mx-auto px-6 pb-12">
+      <div className="container mx-auto px-3 sm:px-6 pb-8 sm:pb-12">
          {/* Instructions */}
-         <motion.section variants={itemVariants} className="mb-8 mt-16">
+         <motion.section variants={itemVariants} className="mb-6 sm:mb-8 mt-12 sm:mt-16">
            <Card className="bg-orange-50 border-orange-200">
-             <CardContent className="p-6">
+             <CardContent className="p-4 sm:p-6">
                <div className="flex items-start gap-3">
                  <div className="p-2 bg-orange-100 rounded-lg">
                    <CreditCard className="h-5 w-5 text-orange-600" />
                  </div>
                  <div>
-                   <h3 className="font-semibold text-orange-900 mb-2">Debt Management Guide</h3>
-                   <div className="space-y-2 text-sm text-orange-800">
+                   <h3 className="font-semibold text-orange-900 mb-2 text-sm sm:text-base">Debt Management Guide</h3>
+                   <div className="space-y-2 text-xs sm:text-sm text-orange-800">
                      <p><strong>Key Metrics:</strong> Track your total debt, remaining balance, monthly payments, and average interest rate.</p>
                      <p><strong>Debt Overview:</strong> See all your debts organized by type and priority with progress tracking.</p>
                      <p><strong>Debt Analysis:</strong> Get insights into your debt-to-income ratio, repayment timeline, and optimization strategies.</p>
@@ -617,23 +617,27 @@ export default function LoansPage() {
 
          {/* Debt Analysis & Management */}
          <motion.section variants={itemVariants} className="mb-8">
-          <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="overview" className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4" />
-                Overview
+          <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 text-xs sm:text-sm">
+              <TabsTrigger value="overview" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Overview</span>
+                <span className="sm:hidden">Overview</span>
               </TabsTrigger>
-              <TabsTrigger value="debts" className="flex items-center gap-2">
-                <CreditCard className="h-4 w-4" />
-                My Debts
+              <TabsTrigger value="debts" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                <CreditCard className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">My Debts</span>
+                <span className="sm:hidden">Debts</span>
               </TabsTrigger>
-              <TabsTrigger value="analysis" className="flex items-center gap-2">
-                <Calculator className="h-4 w-4" />
-                Analysis
+              <TabsTrigger value="analysis" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                <Calculator className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Analysis</span>
+                <span className="sm:hidden">Analysis</span>
               </TabsTrigger>
-              <TabsTrigger value="insights" className="flex items-center gap-2">
-                <Lightbulb className="h-4 w-4" />
-                Insights
+              <TabsTrigger value="insights" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                <Lightbulb className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Insights</span>
+                <span className="sm:hidden">Insights</span>
               </TabsTrigger>
             </TabsList>
 
@@ -655,7 +659,7 @@ export default function LoansPage() {
                 </Card>
               ) : (
                 /* Financial Charts Section */
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
                 {/* Debt Reduction Over Time */}
                 <Card>
                   <CardHeader>
@@ -686,7 +690,7 @@ export default function LoansPage() {
                             },
                           },
                         }}
-                        className="h-64"
+                        className="h-48 sm:h-64"
                       >
                         <LineChart data={debtData.debtReductionData}>
                           <CartesianGrid strokeDasharray="3 3" />
@@ -732,21 +736,21 @@ export default function LoansPage() {
                         </LineChart>
                       </ChartContainer>
                     ) : (
-                      <div className="h-64 flex items-center justify-center text-muted-foreground">
-                        <div className="text-center">
-                          <TrendingDown className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                          <p>Need 3+ months of data</p>
-                          <p className="text-sm">Create at least 3 budgets with debts to see your debt reduction progress</p>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="mt-4"
-                            onClick={() => setIsAddDebtModalOpen(true)}
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Your First Debt
-                          </Button>
-                        </div>
+                      <div className="h-48 sm:h-64 flex items-center justify-center text-muted-foreground">
+                                              <div className="text-center">
+                        <TrendingDown className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 opacity-50" />
+                        <p className="text-sm sm:text-base">Need 3+ months of data</p>
+                        <p className="text-xs sm:text-sm">Create at least 3 budgets with debts to see your debt reduction progress</p>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="mt-3 sm:mt-4 text-xs sm:text-sm"
+                          onClick={() => setIsAddDebtModalOpen(true)}
+                        >
+                          <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                          Add Your First Debt
+                        </Button>
+                      </div>
                       </div>
                     )}
                   </CardContent>
@@ -775,7 +779,7 @@ export default function LoansPage() {
                             },
                           },
                         }}
-                        className="h-64"
+                        className="h-48 sm:h-64"
                       >
                         <LineChart data={debtData.debtToIncomeTrendData}>
                           <CartesianGrid strokeDasharray="3 3" />
@@ -830,21 +834,21 @@ export default function LoansPage() {
                         </LineChart>
                       </ChartContainer>
                     ) : (
-                      <div className="h-64 flex items-center justify-center text-muted-foreground">
-                        <div className="text-center">
-                          <Percent className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                          <p>Need 3+ months of data</p>
-                          <p className="text-sm">Create at least 3 budgets to see your debt-to-income trend</p>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="mt-4"
-                            onClick={() => setIsAddDebtModalOpen(true)}
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Your First Debt
-                          </Button>
-                        </div>
+                      <div className="h-48 sm:h-64 flex items-center justify-center text-muted-foreground">
+                                              <div className="text-center">
+                        <Percent className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 opacity-50" />
+                        <p className="text-sm sm:text-base">Need 3+ months of data</p>
+                        <p className="text-xs sm:text-sm">Create at least 3 budgets to see your debt-to-income trend</p>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="mt-3 sm:mt-4 text-xs sm:text-sm"
+                          onClick={() => setIsAddDebtModalOpen(true)}
+                        >
+                          <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                          Add Your First Debt
+                        </Button>
+                      </div>
                       </div>
                     )}
                   </CardContent>
@@ -864,20 +868,20 @@ export default function LoansPage() {
                   <CardContent>
                     {debts.length === 0 ? (
                       <div className="h-64 flex items-center justify-center text-muted-foreground">
-                        <div className="text-center">
-                          <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                          <p>No debts added yet</p>
-                          <p className="text-sm">Add your first debt to see interest cost analysis</p>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="mt-4"
-                            onClick={() => setIsAddDebtModalOpen(true)}
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Your First Debt
-                          </Button>
-                        </div>
+                                              <div className="text-center">
+                        <DollarSign className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 opacity-50" />
+                        <p className="text-sm sm:text-base">No debts added yet</p>
+                        <p className="text-xs sm:text-sm">Add your first debt to see interest cost analysis</p>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="mt-3 sm:mt-4 text-xs sm:text-sm"
+                          onClick={() => setIsAddDebtModalOpen(true)}
+                        >
+                          <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                          Add Your First Debt
+                        </Button>
+                      </div>
                       </div>
                     ) : debts.filter(debt => (debt.interestRate || 0) > 0).length === 0 ? (
                       <div className="h-64 flex items-center justify-center text-muted-foreground">
@@ -899,7 +903,7 @@ export default function LoansPage() {
                             },
                           },
                         }}
-                        className="h-64"
+                        className="h-48 sm:h-64"
                       >
                         <BarChart data={debtData.interestImpactData.filter(item => item.interestRate > 0)}>
                           <CartesianGrid strokeDasharray="3 3" />
@@ -947,44 +951,44 @@ export default function LoansPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="h-64 flex items-center justify-center">
-                      <div className="text-center">
-                        <div className="relative w-32 h-32 mx-auto mb-4">
-                          <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 120 120">
-                            <circle
-                              cx="60"
-                              cy="60"
-                              r="50"
-                              fill="none"
-                              stroke="hsl(var(--muted))"
-                              strokeWidth="8"
-                            />
-                            <circle
-                              cx="60"
-                              cy="60"
-                              r="50"
-                              fill="none"
-                              stroke={debtData.repaymentEfficiencyScore >= 80 ? "hsl(var(--primary))" : 
-                                     debtData.repaymentEfficiencyScore >= 60 ? "hsl(var(--warning))" : "hsl(var(--destructive))"}
-                              strokeWidth="8"
-                              strokeDasharray={`${(debtData.repaymentEfficiencyScore / 100) * 314} 314`}
-                              strokeLinecap="round"
-                            />
-                          </svg>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="text-center">
-                              <div className={`text-2xl font-bold ${
-                                debtData.repaymentEfficiencyScore >= 80 ? "text-primary" : 
-                                debtData.repaymentEfficiencyScore >= 60 ? "text-warning" : "text-destructive"
-                              }`}>
-                                {debtData.repaymentEfficiencyScore.toFixed(0)}
+                    <div className="h-48 sm:h-64 flex items-center justify-center">
+                                              <div className="text-center">
+                          <div className="relative w-24 h-24 sm:w-32 sm:h-32 mx-auto mb-4">
+                            <svg className="w-24 h-24 sm:w-32 sm:h-32 transform -rotate-90" viewBox="0 0 120 120">
+                              <circle
+                                cx="60"
+                                cy="60"
+                                r="50"
+                                fill="none"
+                                stroke="hsl(var(--muted))"
+                                strokeWidth="8"
+                              />
+                              <circle
+                                cx="60"
+                                cy="60"
+                                r="50"
+                                fill="none"
+                                stroke={debtData.repaymentEfficiencyScore >= 80 ? "hsl(var(--primary))" : 
+                                       debtData.repaymentEfficiencyScore >= 60 ? "hsl(var(--warning))" : "hsl(var(--destructive))"}
+                                strokeWidth="8"
+                                strokeDasharray={`${(debtData.repaymentEfficiencyScore / 100) * 314} 314`}
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="text-center">
+                                <div className={`text-lg sm:text-2xl font-bold ${
+                                  debtData.repaymentEfficiencyScore >= 80 ? "text-primary" : 
+                                  debtData.repaymentEfficiencyScore >= 60 ? "text-warning" : "text-destructive"
+                                }`}>
+                                  {debtData.repaymentEfficiencyScore.toFixed(0)}
+                                </div>
+                                <div className="text-xs text-muted-foreground">Score</div>
                               </div>
-                              <div className="text-xs text-muted-foreground">Score</div>
                             </div>
                           </div>
-                        </div>
                         <div className="space-y-2">
-                          <div className="text-sm">
+                          <div className="text-xs sm:text-sm">
                             <span className="font-medium">Status: </span>
                             <span className={cn(
                               debtData.repaymentEfficiencyScore >= 80 ? "text-primary" : 
@@ -1008,12 +1012,12 @@ export default function LoansPage() {
 
             {/* My Debts Tab */}
             <TabsContent value="debts" className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold">My Debts</h2>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
+                <h2 className="text-xl sm:text-2xl font-bold">My Debts</h2>
                 <Dialog open={isAddDebtModalOpen} onOpenChange={setIsAddDebtModalOpen}>
                   <DialogTrigger asChild>
-                    <Button className="bg-primary hover:bg-primary/90">
-                      <Plus className="h-4 w-4 mr-2" />
+                    <Button className="bg-primary hover:bg-primary/90 text-xs sm:text-sm">
+                      <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                       Add Debt
                     </Button>
                   </DialogTrigger>
@@ -1200,59 +1204,59 @@ export default function LoansPage() {
                 ) : (
                   debtData.debtProgress.map((debt) => (
                     <Card key={debt.id} className="relative">
-                      <CardContent className="p-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex items-center gap-3">
-                            <div className={cn("p-2 rounded-lg", DEBT_TYPES[debt.debtType as keyof typeof DEBT_TYPES]?.color?.replace('text-', 'bg-').replace('-500', '-100') || 'bg-gray-100')}>
-                              {DEBT_TYPES[debt.debtType as keyof typeof DEBT_TYPES]?.icon || <FileText className="h-4 w-4" />}
+                      <CardContent className="p-4 sm:p-6">
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-0 mb-4">
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            <div className={cn("p-1.5 sm:p-2 rounded-lg", DEBT_TYPES[debt.debtType as keyof typeof DEBT_TYPES]?.color?.replace('text-', 'bg-').replace('-500', '-100') || 'bg-gray-100')}>
+                              {DEBT_TYPES[debt.debtType as keyof typeof DEBT_TYPES]?.icon || <FileText className="h-3 w-3 sm:h-4 sm:w-4" />}
                             </div>
-                                                         <div>
-                               <h3 className="font-semibold text-lg">{debt.name}</h3>
-                               <p className="text-sm text-muted-foreground">
-                                 {DEBT_TYPES[debt.debtType as keyof typeof DEBT_TYPES]?.label || 'Other'} • {(debt.interestRate || 0).toFixed(1)}% APR
-                               </p>
-                             </div>
+                            <div>
+                              <h3 className="font-semibold text-base sm:text-lg">{debt.name}</h3>
+                              <p className="text-xs sm:text-sm text-muted-foreground">
+                                {DEBT_TYPES[debt.debtType as keyof typeof DEBT_TYPES]?.label || 'Other'} • {(debt.interestRate || 0).toFixed(1)}% APR
+                              </p>
+                            </div>
                           </div>
                           
-                                                     <div className="flex items-center gap-2">
-                             <Badge className={PRIORITY_COLORS[debt.priority as keyof typeof PRIORITY_COLORS] || PRIORITY_COLORS.medium}>
-                               {(debt.priority || 'medium').charAt(0).toUpperCase() + (debt.priority || 'medium').slice(1)} Priority
-                             </Badge>
-                                                         {debt.isComplete && (
-                               <Button
-                                 variant="ghost"
-                                 size="sm"
-                                 onClick={() => handlePaidOffDebtClick(debt as any)}
-                                 className="bg-green-100 text-green-700 hover:bg-green-200 border-green-200"
-                               >
-                                 <CheckCircle className="h-4 w-4 mr-1" />
-                                 Paid Off
-                               </Button>
-                             )}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge className={cn(PRIORITY_COLORS[debt.priority as keyof typeof PRIORITY_COLORS] || PRIORITY_COLORS.medium, "text-xs")}>
+                              {(debt.priority || 'medium').charAt(0).toUpperCase() + (debt.priority || 'medium').slice(1)} Priority
+                            </Badge>
+                            {debt.isComplete && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handlePaidOffDebtClick(debt as any)}
+                                className="bg-green-100 text-green-700 hover:bg-green-200 border-green-200 text-xs"
+                              >
+                                <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                Paid Off
+                              </Button>
+                            )}
                           </div>
                         </div>
                         
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4">
                           <div>
-                            <p className="text-sm text-muted-foreground">Total Amount</p>
-                            <p className="font-semibold">£{debt.totalAmount.toFixed(2)}</p>
+                            <p className="text-xs sm:text-sm text-muted-foreground">Total Amount</p>
+                            <p className="font-semibold text-sm sm:text-base">£{debt.totalAmount.toFixed(2)}</p>
                           </div>
                           <div>
-                            <p className="text-sm text-muted-foreground">Monthly Payment</p>
-                            <p className="font-semibold">£{debt.monthlyRepayment.toFixed(2)}</p>
+                            <p className="text-xs sm:text-sm text-muted-foreground">Monthly Payment</p>
+                            <p className="font-semibold text-sm sm:text-base">£{debt.monthlyRepayment.toFixed(2)}</p>
                           </div>
-                                                     <div>
-                             <p className="text-sm text-muted-foreground">Amount Repaid</p>
-                             <p className="font-semibold">£{debt.repaidAmount.toFixed(2)}</p>
-                           </div>
-                           <div>
-                             <p className="text-sm text-muted-foreground">Remaining</p>
-                             <p className="font-semibold text-muted-foreground">£{debt.remainingAmount.toFixed(2)}</p>
-                           </div>
+                          <div>
+                            <p className="text-xs sm:text-sm text-muted-foreground">Amount Repaid</p>
+                            <p className="font-semibold text-sm sm:text-base">£{debt.repaidAmount.toFixed(2)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs sm:text-sm text-muted-foreground">Remaining</p>
+                            <p className="font-semibold text-sm sm:text-base text-muted-foreground">£{debt.remainingAmount.toFixed(2)}</p>
+                          </div>
                         </div>
                         
                         <div className="space-y-2 mb-4">
-                          <div className="flex justify-between text-sm">
+                          <div className="flex justify-between text-xs sm:text-sm">
                             <span>Progress</span>
                             <span>{debt.progress.toFixed(1)}%</span>
                           </div>
@@ -1260,28 +1264,29 @@ export default function LoansPage() {
                         </div>
                         
                         {!debt.isComplete && (
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Timer className="h-4 w-4" />
+                          <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                            <Timer className="h-3 w-3 sm:h-4 sm:w-4" />
                             <span>
                               {debt.monthsRemaining} months remaining at current rate
                             </span>
                           </div>
                         )}
                         
-                        <div className="flex items-center gap-2 mt-4 pt-4 border-t">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-4 pt-4 border-t">
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleEditDebt(debt)}
+                            className="text-xs sm:text-sm"
                           >
-                            <Edit className="h-4 w-4 mr-2" />
+                            <Edit className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                             Edit
                           </Button>
                           
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
-                                <Trash2 className="h-4 w-4 mr-2" />
+                              <Button variant="outline" size="sm" className="text-destructive hover:text-destructive text-xs sm:text-sm">
+                                <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                                 Delete
                               </Button>
                             </AlertDialogTrigger>
@@ -1313,7 +1318,7 @@ export default function LoansPage() {
 
             {/* Analysis Tab */}
             <TabsContent value="analysis" className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
                 {/* Debt by Type */}
                 <Card>
                   <CardHeader>
@@ -1400,7 +1405,7 @@ export default function LoansPage() {
               </div>
 
               {/* Additional Analysis Cards */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {/* Repayment Timeline */}
                 <Card>
                   <CardHeader>
@@ -1553,7 +1558,7 @@ export default function LoansPage() {
 
             {/* Insights Tab */}
             <TabsContent value="insights" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                 {/* Interest Analysis */}
                 <Card>
                   <CardHeader>
@@ -1589,18 +1594,18 @@ export default function LoansPage() {
                          </div>
                        </>
                      ) : (
-                       <div className="text-center py-8">
-                         <Percent className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                         <h3 className="text-lg font-semibold mb-2">No Interest-Bearing Debts</h3>
-                         <p className="text-muted-foreground mb-4">
-                           You don't have any debts with interest rates. This is great for your financial health!
-                         </p>
-                         <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
-                           <p className="text-sm text-muted-foreground">
-                             💡 Tip: Keep it this way by avoiding high-interest loans and credit cards
-                           </p>
-                         </div>
-                       </div>
+                                             <div className="text-center py-6 sm:py-8">
+                        <Percent className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 text-muted-foreground opacity-50" />
+                        <h3 className="text-base sm:text-lg font-semibold mb-2">No Interest-Bearing Debts</h3>
+                        <p className="text-xs sm:text-sm text-muted-foreground mb-4">
+                          You don't have any debts with interest rates. This is great for your financial health!
+                        </p>
+                        <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                          <p className="text-xs sm:text-sm text-muted-foreground">
+                            💡 Tip: Keep it this way by avoiding high-interest loans and credit cards
+                          </p>
+                        </div>
+                      </div>
                      )}
                    </CardContent>
                 </Card>
