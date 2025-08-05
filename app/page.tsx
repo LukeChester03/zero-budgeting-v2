@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import ClientOnly from "@/app/components/ClientOnly";
 import MonthlyIncomeInput from "@/app/components/MonthlyIncomeInput";
 import AuthModal from "@/app/components/AuthModal";
+import WhereDoIStartGuide from "@/app/components/WhereDoIStartGuide";
 import { 
   Plus, 
   PiggyBank, 
@@ -41,6 +42,7 @@ export default function Home() {
   const router = useRouter();
   const { user } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
   
   // Store selectors
   const budgets = useFirebaseStore((s) => s.budgets);
@@ -494,6 +496,26 @@ export default function Home() {
               </CardContent>
             </Card>
 
+            <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer border-teal-500/20 hover:border-teal-500/40">
+              <CardContent className="p-4 sm:p-6" onClick={() => setIsGuideOpen(true)}>
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className="p-2 sm:p-3 bg-teal-500/10 rounded-xl group-hover:bg-teal-500/20 transition-colors">
+                    <BookOpen className="h-6 w-6 sm:h-8 sm:w-8 text-teal-500" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-base sm:text-lg mb-1">Where Do I Start?</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3">
+                      Step-by-step guide to get you started
+                    </p>
+                    <Badge variant="outline" className="border-teal-200 text-teal-700 dark:border-teal-800 dark:text-teal-300">
+                      New User
+                    </Badge>
+                  </div>
+                  <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground group-hover:text-teal-500 transition-colors" />
+                </div>
+              </CardContent>
+            </Card>
+
             <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer">
               <CardContent className="p-4 sm:p-6" onClick={handleViewSavings}>
                 <div className="flex items-center gap-3 sm:gap-4">
@@ -740,6 +762,10 @@ export default function Home() {
             </CardContent>
           </Card>
         </motion.section>
+
+        {/* Modals */}
+        <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+        <WhereDoIStartGuide isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
       </div>
     </motion.div>
   );
