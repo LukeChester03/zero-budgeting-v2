@@ -52,6 +52,7 @@ import { cn } from "@/lib/utils";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { useToast } from "@/hooks/use-toast";
+import PaidOffDebtModal from "@/app/components/PaidOffDebtModal";
 
 interface Debt {
   id: string;
@@ -141,6 +142,19 @@ export default function LoansPage() {
     endDate: new Date().toISOString().split('T')[0],
   });
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
+  const [paidOffDebtModal, setPaidOffDebtModal] = useState<{
+    isOpen: boolean;
+    debtName: string;
+    monthlyPayment: number;
+    totalAmount: number;
+    interestSaved: number;
+  }>({
+    isOpen: false,
+    debtName: "",
+    monthlyPayment: 0,
+    totalAmount: 0,
+    interestSaved: 0
+  });
 
   // Calculate comprehensive debt data
   const debtData = useMemo(() => {
@@ -199,19 +213,22 @@ export default function LoansPage() {
         const startDate = new Date(debt.startDate);
         const budgetDate = new Date(budget.month);
         if (budgetDate >= startDate) {
-          const monthsSinceStart = (budgetDate.getFullYear() - startDate.getFullYear()) * 12 + 
-                                 (budgetDate.getMonth() - startDate.getMonth());
+          const monthsSinceStart = Math.max(0, (budgetDate.getFullYear() - startDate.getFullYear()) * 12 + 
+                                 (budgetDate.getMonth() - startDate.getMonth()));
           const expectedRepaid = Math.min(monthsSinceStart * debt.monthlyRepayment, debt.totalAmount);
-          return sum + (debt.totalAmount - expectedRepaid);
+          const remainingDebt = Math.max(0, debt.totalAmount - expectedRepaid);
+          return sum + remainingDebt;
         }
         return sum + debt.totalAmount;
       }, 0);
+      
+      const totalRepaidAtTime = totalDebt - totalDebtAtTime;
       
       return {
         month: budget.month,
         totalDebt: totalDebtAtTime,
         remainingDebt: totalDebtAtTime,
-        repaidAmount: totalDebt - totalDebtAtTime
+        repaidAmount: totalRepaidAtTime
       };
     });
 
@@ -237,6 +254,85 @@ export default function LoansPage() {
       color: priority === 'high' ? 'text-red-500' : priority === 'medium' ? 'text-yellow-500' : 'text-green-500'
     }));
 
+    // Prepare debt-to-income trend data
+    const debtToIncomeTrendData = budgets.slice(-6).map(budget => {
+      const totalMonthlyPaymentsAtTime = debts.reduce((sum, debt) => {
+        const startDate = new Date(debt.startDate);
+        const budgetDate = new Date(budget.month);
+        const endDate = debt.endDate ? new Date(debt.endDate) : null;
+        
+        // Check if debt is active at this time
+        if (budgetDate >= startDate && (!endDate || budgetDate <= endDate)) {
+          return sum + debt.monthlyRepayment;
+        }
+        return sum;
+      }, 0);
+      
+      const debtToIncomeRatioAtTime = budget.income > 0 ? (totalMonthlyPaymentsAtTime / budget.income) * 100 : 0;
+      
+      return {
+        month: budget.month,
+        debtToIncomeRatio: debtToIncomeRatioAtTime,
+        targetRatio: 20 // Recommended target
+      };
+    });
+
+    // Prepare interest impact data
+    const interestImpactData = debts.map(debt => {
+      const repaidAmount = getRepaidAmountForDebt(debt.name);
+      const remainingAmount = debt.totalAmount - repaidAmount;
+      const interestRate = debt.interestRate || 0;
+      const monthlyInterest = (interestRate / 100) / 12;
+      
+      // Calculate remaining months based on remaining amount and monthly payment
+      const remainingMonths = remainingAmount > 0 ? Math.ceil(remainingAmount / debt.monthlyRepayment) : 0;
+      const estimatedInterestCost = remainingAmount * monthlyInterest * remainingMonths;
+      
+      return {
+        debtName: debt.name,
+        interestCost: estimatedInterestCost,
+        interestRate: interestRate,
+        remainingAmount: remainingAmount,
+        remainingMonths: remainingMonths
+      };
+    }).sort((a, b) => b.interestCost - a.interestCost);
+
+    // Calculate repayment efficiency score
+    const calculateRepaymentEfficiencyScore = () => {
+      if (debts.length === 0) return 0;
+      
+      let score = 100;
+      
+      // Deduct points for high debt-to-income ratio
+      if (debtToIncomeRatio > 40) score -= 30;
+      else if (debtToIncomeRatio > 20) score -= 15;
+      
+      // Deduct points for high interest rates
+      const averageInterestRate = debts.reduce((sum, d) => sum + (d.interestRate || 0), 0) / debts.length;
+      if (averageInterestRate > 15) score -= 25;
+      else if (averageInterestRate > 10) score -= 15;
+      else if (averageInterestRate > 5) score -= 5;
+      
+      // Add points for consistent payments (if we have budget data)
+      if (budgets.length >= 3) {
+        const recentBudgets = budgets.slice(-3);
+        const hasConsistentPayments = recentBudgets.every(budget => {
+          const debtAllocations = budget.allocations?.filter(alloc => 
+            alloc.category.toLowerCase().includes('debt') || 
+            alloc.category.toLowerCase().includes('loan')
+          ) || [];
+          return debtAllocations.length > 0;
+        });
+        if (hasConsistentPayments) score += 10;
+      }
+      
+      // Deduct points for too many debts
+      if (debts.length > 5) score -= 20;
+      else if (debts.length > 3) score -= 10;
+      
+      return Math.max(0, Math.min(100, score));
+    };
+
     return {
       totalDebt,
       totalMonthlyPayments,
@@ -250,9 +346,12 @@ export default function LoansPage() {
       averageInterestRate: debts.length > 0 ? debts.reduce((sum, d) => sum + (d.interestRate || 0), 0) / debts.length : 0,
       debtReductionData,
       debtTypeChartData,
-      priorityChartData
+      priorityChartData,
+      debtToIncomeTrendData,
+      interestImpactData,
+      repaymentEfficiencyScore: calculateRepaymentEfficiencyScore()
     };
-  }, [debts, income, getRepaidAmountForDebt]);
+  }, [debts, income, budgets, getRepaidAmountForDebt]);
 
   const validateForm = (): boolean => {
     const errors: { [key: string]: string } = {};
@@ -377,6 +476,17 @@ export default function LoansPage() {
     return { status: "High Risk", color: "text-red-600", bg: "bg-red-100" };
   };
 
+  const handlePaidOffDebtClick = (debt: any) => {
+    const interestSaved = (debt.interestRate / 100) * debt.totalAmount * (debt.months / 12);
+    setPaidOffDebtModal({
+      isOpen: true,
+      debtName: debt.name,
+      monthlyPayment: debt.monthlyRepayment,
+      totalAmount: debt.totalAmount,
+      interestSaved: interestSaved
+    });
+  };
+
   return (
     <motion.div
       variants={containerVariants}
@@ -402,66 +512,84 @@ export default function LoansPage() {
 
           {/* Key Metrics */}
           <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <DollarSign className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Debt</p>
-                    <p className="text-2xl font-bold">£{debtData.totalDebt.toFixed(2)}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {debts.length === 0 ? (
+              <Card className="md:col-span-4 bg-background/80 backdrop-blur-sm border-primary/20">
+                <CardContent className="p-8 text-center">
+                  <CreditCard className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+                  <h3 className="text-xl font-semibold mb-2">No Debts Added</h3>
+                  <p className="text-muted-foreground mb-4">
+                    You're currently debt-free! Add your first debt to start tracking your repayment journey.
+                  </p>
+                  <Button onClick={() => setIsAddDebtModalOpen(true)} className="bg-primary hover:bg-primary/90">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Your First Debt
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-primary/10 rounded-lg">
+                        <DollarSign className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Total Debt</p>
+                        <p className="text-2xl font-bold">£{debtData.totalDebt.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-                         <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
-               <CardContent className="p-6">
-                 <div className="flex items-center gap-3">
-                   <div className="p-2 bg-primary/10 rounded-lg">
-                     <TrendingDown className="h-6 w-6 text-primary" />
-                   </div>
-                   <div>
-                     <p className="text-sm text-muted-foreground">Remaining</p>
-                     <p className="text-2xl font-bold">£{debtData.totalRemaining.toFixed(2)}</p>
-                   </div>
-                 </div>
-               </CardContent>
-             </Card>
+                <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-primary/10 rounded-lg">
+                        <TrendingDown className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Remaining</p>
+                        <p className="text-2xl font-bold">£{debtData.totalRemaining.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-                         <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
-               <CardContent className="p-6">
-                 <div className="flex items-center gap-3">
-                   <div className="p-2 bg-primary/10 rounded-lg">
-                     <Calendar className="h-6 w-6 text-primary" />
-                   </div>
-                   <div>
-                     <p className="text-sm text-muted-foreground">Monthly Payments</p>
-                     <p className="text-2xl font-bold">£{debtData.totalMonthlyPayments.toFixed(2)}</p>
-                   </div>
-                 </div>
-               </CardContent>
-             </Card>
+                <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-primary/10 rounded-lg">
+                        <Calendar className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Monthly Payments</p>
+                        <p className="text-2xl font-bold">£{debtData.totalMonthlyPayments.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-                         <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
-               <CardContent className="p-6">
-                 <div className="flex items-center gap-3">
-                   <div className="p-2 bg-primary/10 rounded-lg">
-                     <Percent className="h-6 w-6 text-primary" />
-                   </div>
-                   <div>
-                     <p className="text-sm text-muted-foreground">Avg Interest</p>
-                     <p className="text-2xl font-bold">{debtData.averageInterestRate.toFixed(1)}%</p>
-                   </div>
-                 </div>
-               </CardContent>
-             </Card>
+                <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-primary/10 rounded-lg">
+                        <Percent className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Avg Interest</p>
+                        <p className="text-2xl font-bold">{debtData.averageInterestRate.toFixed(1)}%</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
           </motion.div>
         </div>
       </section>
 
-             <div className="container mx-auto px-6 pb-12">
+      <div className="container mx-auto px-6 pb-12">
          {/* Instructions */}
          <motion.section variants={itemVariants} className="mb-8 mt-16">
            <Card className="bg-orange-50 border-orange-200">
@@ -485,164 +613,7 @@ export default function LoansPage() {
            </Card>
          </motion.section>
 
-         {/* Charts Section */}
-         <motion.section variants={itemVariants} className="mb-8 mt-16">
-           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-             {/* Debt Reduction Over Time */}
-             <Card>
-               <CardHeader>
-                 <CardTitle className="flex items-center gap-2">
-                   <TrendingDown className="h-5 w-5" />
-                   Debt Reduction Over Time
-                 </CardTitle>
-                 <CardDescription>
-                   Your debt balance decreasing over time
-                 </CardDescription>
-               </CardHeader>
-               <CardContent>
-                 {false ? (
-                   <ChartContainer
-                     config={{
-                       remainingDebt: {
-                         label: "Remaining Debt",
-                         theme: {
-                           light: "hsl(var(--destructive))",
-                           dark: "hsl(var(--destructive))",
-                         },
-                       },
-                       repaidAmount: {
-                         label: "Repaid Amount",
-                         theme: {
-                           light: "hsl(var(--primary))",
-                           dark: "hsl(var(--primary))",
-                         },
-                       },
-                     }}
-                     className="h-64"
-                   >
-                     <LineChart data={debtData.debtReductionData}>
-                       <CartesianGrid strokeDasharray="3 3" />
-                       <XAxis 
-                         dataKey="month" 
-                         tickFormatter={(value) => {
-                           const date = new Date(value);
-                           return date.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
-                         }}
-                       />
-                       <YAxis 
-                         tickFormatter={(value) => `£${value}`}
-                       />
-                       <ChartTooltip 
-                         content={({ active, payload, label }) => {
-                           if (!active || !payload?.length) return null;
-                           const date = new Date(label);
-                           return (
-                             <ChartTooltipContent
-                               active={active}
-                               payload={payload}
-                               label={date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
-                               formatter={(value: any, name: any) => [`£${value.toFixed(2)}`, String(name)]}
-                             />
-                           );
-                         }}
-                       />
-                       <Line 
-                         type="monotone" 
-                         dataKey="remainingDebt" 
-                         strokeWidth={3}
-                         dot={{ strokeWidth: 2, r: 4 }}
-                         activeDot={{ r: 6, strokeWidth: 2 }}
-                       />
-                       <Line 
-                         type="monotone" 
-                         dataKey="repaidAmount" 
-                         strokeWidth={2}
-                         strokeDasharray="5 5"
-                         dot={{ strokeWidth: 2, r: 3 }}
-                         activeDot={{ r: 5, strokeWidth: 2 }}
-                       />
-                     </LineChart>
-                   </ChartContainer>
-                                    ) : (
-                     <div className="h-64 flex items-center justify-center text-muted-foreground">
-                       <div className="text-center">
-                         <TrendingDown className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                         <p>Need 3+ months of data</p>
-                         <p className="text-sm">Create at least 3 budgets with debts to see your debt reduction progress</p>
-                       </div>
-                     </div>
-                   )}
-               </CardContent>
-             </Card>
 
-             {/* Debt by Type Chart */}
-             <Card>
-               <CardHeader>
-                 <CardTitle className="flex items-center gap-2">
-                   <BarChart3 className="h-5 w-5" />
-                   Debt by Type
-                 </CardTitle>
-                 <CardDescription>
-                   Distribution of your debts by category
-                 </CardDescription>
-               </CardHeader>
-               <CardContent>
-                 {false ? (
-                   <ChartContainer
-                     config={{
-                       value: {
-                         label: "Amount",
-                         theme: {
-                           light: "hsl(var(--primary))",
-                           dark: "hsl(var(--primary))",
-                         },
-                       },
-                     }}
-                     className="h-64"
-                   >
-                     <BarChart data={debtData.debtTypeChartData}>
-                       <CartesianGrid strokeDasharray="3 3" />
-                       <XAxis 
-                         dataKey="name" 
-                         angle={-45}
-                         textAnchor="end"
-                         height={80}
-                       />
-                       <YAxis 
-                         tickFormatter={(value) => `£${value}`}
-                       />
-                       <ChartTooltip 
-                         content={({ active, payload, label }) => {
-                           if (!active || !payload?.length) return null;
-                           return (
-                             <ChartTooltipContent
-                               active={active}
-                               payload={payload}
-                               label={label}
-                               formatter={(value: any, name: any) => [`£${value.toFixed(2)}`, 'Amount']}
-                             />
-                           );
-                         }}
-                       />
-                       <Bar 
-                         dataKey="value" 
-                         radius={[4, 4, 0, 0]}
-                       />
-                     </BarChart>
-                   </ChartContainer>
-                                    ) : (
-                     <div className="h-64 flex items-center justify-center text-muted-foreground">
-                       <div className="text-center">
-                         <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                         <p>No debts added yet</p>
-                         <p className="text-sm">Add your first debt to see the breakdown by type</p>
-                       </div>
-                     </div>
-                   )}
-               </CardContent>
-             </Card>
-           </div>
-         </motion.section>
 
          {/* Debt Analysis & Management */}
          <motion.section variants={itemVariants} className="mb-8">
@@ -668,105 +639,371 @@ export default function LoansPage() {
 
             {/* Overview Tab */}
             <TabsContent value="overview" className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Debt Progress */}
+              {debts.length === 0 ? (
+                <Card>
+                  <CardContent className="text-center py-12">
+                    <CreditCard className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+                    <h3 className="text-xl font-semibold mb-2">No Debts to Analyze</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Add your first debt to see detailed charts and analysis of your debt management.
+                    </p>
+                    <Button onClick={() => setIsAddDebtModalOpen(true)} className="bg-primary hover:bg-primary/90">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Your First Debt
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                /* Financial Charts Section */
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Debt Reduction Over Time */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <TrendingDown className="h-5 w-5" />
+                      Debt Reduction Over Time
+                    </CardTitle>
+                    <CardDescription>
+                      Track your debt balance decreasing over time
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {budgets.length >= 3 ? (
+                      <ChartContainer
+                        config={{
+                          remainingDebt: {
+                            label: "Remaining Debt",
+                            theme: {
+                              light: "hsl(var(--destructive))",
+                              dark: "hsl(var(--destructive))",
+                            },
+                          },
+                          repaidAmount: {
+                            label: "Repaid Amount",
+                            theme: {
+                              light: "hsl(var(--primary))",
+                              dark: "hsl(var(--primary))",
+                            },
+                          },
+                        }}
+                        className="h-64"
+                      >
+                        <LineChart data={debtData.debtReductionData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis
+                            dataKey="month"
+                            tickFormatter={(value) => {
+                              const date = new Date(value);
+                              return date.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+                            }}
+                          />
+                          <YAxis
+                            tickFormatter={(value) => `£${value}`}
+                          />
+                          <ChartTooltip
+                            content={({ active, payload, label }) => {
+                              if (!active || !payload?.length) return null;
+                              const date = new Date(label);
+                              return (
+                                <ChartTooltipContent
+                                  active={active}
+                                  payload={payload}
+                                  label={date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
+                                  formatter={(value: any, name: any) => [`£${value.toFixed(2)}`, String(name)]}
+                                />
+                              );
+                            }}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="remainingDebt"
+                            strokeWidth={3}
+                            dot={{ strokeWidth: 2, r: 4 }}
+                            activeDot={{ r: 6, strokeWidth: 2 }}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="repaidAmount"
+                            strokeWidth={2}
+                            strokeDasharray="5 5"
+                            dot={{ strokeWidth: 2, r: 3 }}
+                            activeDot={{ r: 5, strokeWidth: 2 }}
+                          />
+                        </LineChart>
+                      </ChartContainer>
+                    ) : (
+                      <div className="h-64 flex items-center justify-center text-muted-foreground">
+                        <div className="text-center">
+                          <TrendingDown className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p>Need 3+ months of data</p>
+                          <p className="text-sm">Create at least 3 budgets with debts to see your debt reduction progress</p>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="mt-4"
+                            onClick={() => setIsAddDebtModalOpen(true)}
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Your First Debt
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Debt-to-Income Trend Analysis */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Percent className="h-5 w-5" />
+                      Debt-to-Income Trend
+                    </CardTitle>
+                    <CardDescription>
+                      Monitor your debt-to-income ratio over time
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {budgets.length >= 3 ? (
+                      <ChartContainer
+                        config={{
+                          debtToIncomeRatio: {
+                            label: "Debt-to-Income Ratio",
+                            theme: {
+                              light: "hsl(var(--warning))",
+                              dark: "hsl(var(--warning))",
+                            },
+                          },
+                        }}
+                        className="h-64"
+                      >
+                        <LineChart data={debtData.debtToIncomeTrendData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis
+                            dataKey="month"
+                            tickFormatter={(value) => {
+                              const date = new Date(value);
+                              return date.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+                            }}
+                          />
+                          <YAxis
+                            tickFormatter={(value) => `${value}%`}
+                          />
+                          <ChartTooltip
+                            content={({ active, payload, label }) => {
+                              if (!active || !payload?.length) return null;
+                              const date = new Date(label);
+                              const data = payload[0];
+                              return (
+                                <ChartTooltipContent
+                                  active={active}
+                                  payload={payload}
+                                  label={`${date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}`}
+                                  formatter={(value: any, name: any) => {
+                                    if (name === 'debtToIncomeRatio') {
+                                      return [`${value.toFixed(1)}%`, 'Your Debt-to-Income Ratio'];
+                                    } else if (name === 'targetRatio') {
+                                      return [`${value.toFixed(1)}%`, 'Recommended Target (20%)'];
+                                    }
+                                    return [`${value.toFixed(1)}%`, String(name)];
+                                  }}
+                                />
+                              );
+                            }}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="debtToIncomeRatio"
+                            strokeWidth={3}
+                            dot={{ strokeWidth: 2, r: 4 }}
+                            activeDot={{ r: 6, strokeWidth: 2 }}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="targetRatio"
+                            strokeWidth={2}
+                            strokeDasharray="5 5"
+                            stroke="hsl(var(--muted-foreground))"
+                            dot={{ strokeWidth: 2, r: 3 }}
+                            activeDot={{ r: 5, strokeWidth: 2 }}
+                          />
+                        </LineChart>
+                      </ChartContainer>
+                    ) : (
+                      <div className="h-64 flex items-center justify-center text-muted-foreground">
+                        <div className="text-center">
+                          <Percent className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p>Need 3+ months of data</p>
+                          <p className="text-sm">Create at least 3 budgets to see your debt-to-income trend</p>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="mt-4"
+                            onClick={() => setIsAddDebtModalOpen(true)}
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Your First Debt
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Interest Cost Impact Analysis */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <DollarSign className="h-5 w-5" />
+                      Interest Cost Impact
+                    </CardTitle>
+                    <CardDescription>
+                      See how much interest costs you over time
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {debts.length === 0 ? (
+                      <div className="h-64 flex items-center justify-center text-muted-foreground">
+                        <div className="text-center">
+                          <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p>No debts added yet</p>
+                          <p className="text-sm">Add your first debt to see interest cost analysis</p>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="mt-4"
+                            onClick={() => setIsAddDebtModalOpen(true)}
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Your First Debt
+                          </Button>
+                        </div>
+                      </div>
+                    ) : debts.filter(debt => (debt.interestRate || 0) > 0).length === 0 ? (
+                      <div className="h-64 flex items-center justify-center text-muted-foreground">
+                        <div className="text-center">
+                          <Shield className="h-12 w-12 mx-auto mb-4 text-green-500 opacity-50" />
+                          <p className="font-semibold text-green-700">No Interest-Bearing Debts</p>
+                          <p className="text-sm text-muted-foreground">Great news! You have no debts with interest charges.</p>
+                          <p className="text-xs text-muted-foreground mt-2">This means you're not losing money to interest payments.</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <ChartContainer
+                        config={{
+                          interestCost: {
+                            label: "Interest Cost",
+                            theme: {
+                              light: "hsl(var(--destructive))",
+                              dark: "hsl(var(--destructive))",
+                            },
+                          },
+                        }}
+                        className="h-64"
+                      >
+                        <BarChart data={debtData.interestImpactData.filter(item => item.interestRate > 0)}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis
+                            dataKey="debtName"
+                            angle={-45}
+                            textAnchor="end"
+                            height={80}
+                          />
+                          <YAxis
+                            tickFormatter={(value) => `£${value}`}
+                          />
+                          <ChartTooltip
+                            content={({ active, payload, label }) => {
+                              if (!active || !payload?.length) return null;
+                              return (
+                                <ChartTooltipContent
+                                  active={active}
+                                  payload={payload}
+                                  label={label}
+                                  formatter={(value: any, name: any) => [`£${value.toFixed(2)}`, 'Interest Cost']}
+                                />
+                              );
+                            }}
+                          />
+                          <Bar
+                            dataKey="interestCost"
+                            radius={[4, 4, 0, 0]}
+                          />
+                        </BarChart>
+                      </ChartContainer>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Debt Repayment Efficiency Score */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Target className="h-5 w-5" />
-                      Debt Progress
+                      Repayment Efficiency Score
                     </CardTitle>
                     <CardDescription>
-                      Your overall debt reduction progress
+                      How efficiently you're paying off your debts
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">Total Repaid</span>
-                        <span className="font-semibold">£{debtData.totalRepaid.toFixed(2)}</span>
+                  <CardContent>
+                    <div className="h-64 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="relative w-32 h-32 mx-auto mb-4">
+                          <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 120 120">
+                            <circle
+                              cx="60"
+                              cy="60"
+                              r="50"
+                              fill="none"
+                              stroke="hsl(var(--muted))"
+                              strokeWidth="8"
+                            />
+                            <circle
+                              cx="60"
+                              cy="60"
+                              r="50"
+                              fill="none"
+                              stroke={debtData.repaymentEfficiencyScore >= 80 ? "hsl(var(--primary))" : 
+                                     debtData.repaymentEfficiencyScore >= 60 ? "hsl(var(--warning))" : "hsl(var(--destructive))"}
+                              strokeWidth="8"
+                              strokeDasharray={`${(debtData.repaymentEfficiencyScore / 100) * 314} 314`}
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="text-center">
+                              <div className={`text-2xl font-bold ${
+                                debtData.repaymentEfficiencyScore >= 80 ? "text-primary" : 
+                                debtData.repaymentEfficiencyScore >= 60 ? "text-warning" : "text-destructive"
+                              }`}>
+                                {debtData.repaymentEfficiencyScore.toFixed(0)}
+                              </div>
+                              <div className="text-xs text-muted-foreground">Score</div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="text-sm">
+                            <span className="font-medium">Status: </span>
+                            <span className={cn(
+                              debtData.repaymentEfficiencyScore >= 80 ? "text-primary" : 
+                              debtData.repaymentEfficiencyScore >= 60 ? "text-warning" : "text-destructive"
+                            )}>
+                              {debtData.repaymentEfficiencyScore >= 80 ? "Excellent" : 
+                               debtData.repaymentEfficiencyScore >= 60 ? "Good" : "Needs Improvement"}
+                            </span>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Based on payment consistency, debt-to-income ratio, and interest rates
+                          </div>
+                        </div>
                       </div>
-                      <Progress 
-                        value={(debtData.totalRepaid / debtData.totalDebt) * 100} 
-                        className="h-3" 
-                      />
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>0%</span>
-                        <span>{((debtData.totalRepaid / debtData.totalDebt) * 100).toFixed(1)}%</span>
-                        <span>100%</span>
-                      </div>
-                    </div>
-                    
-                    <Separator />
-                    
-                                         <div className="grid grid-cols-2 gap-4">
-                       <div className="text-center p-4 rounded-lg bg-primary/5 border border-primary/20">
-                         <div className="text-2xl font-bold">
-                           £{debtData.totalRepaid.toFixed(2)}
-                         </div>
-                         <div className="text-sm text-muted-foreground">Total Repaid</div>
-                       </div>
-                       <div className="text-center p-4 rounded-lg bg-muted border border-border">
-                         <div className="text-2xl font-bold text-muted-foreground">
-                           £{debtData.totalRemaining.toFixed(2)}
-                         </div>
-                         <div className="text-sm text-muted-foreground">Remaining</div>
-                       </div>
-                     </div>
-                  </CardContent>
-                </Card>
-
-                {/* Debt to Income Ratio */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <AlertTriangle className="h-5 w-5" />
-                      Debt to Income Ratio
-                    </CardTitle>
-                    <CardDescription>
-                      Monthly debt payments vs income
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="text-center">
-                      <div className={cn(
-                        "text-4xl font-bold mb-2",
-                        getDebtToIncomeStatus(debtData.debtToIncomeRatio).color
-                      )}>
-                        {debtData.debtToIncomeRatio.toFixed(1)}%
-                      </div>
-                      <Badge className={cn(
-                        "text-sm",
-                        getDebtToIncomeStatus(debtData.debtToIncomeRatio).bg
-                      )}>
-                        {getDebtToIncomeStatus(debtData.debtToIncomeRatio).status}
-                      </Badge>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <div className="flex justify-between text-sm">
-                        <span>Monthly Payments</span>
-                        <span className="font-semibold">£{debtData.totalMonthlyPayments.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Monthly Income</span>
-                        <span className="font-semibold">£{income.toFixed(2)}</span>
-                      </div>
-                    </div>
-                    
-                    <div className="p-4 rounded-lg bg-muted/50">
-                      <div className="text-sm text-muted-foreground mb-2">
-                        <strong>Recommendations:</strong>
-                      </div>
-                      <ul className="text-xs space-y-1 text-muted-foreground">
-                        <li>• Keep ratio below 20% for optimal financial health</li>
-                        <li>• Consider debt consolidation if ratio exceeds 40%</li>
-                        <li>• Focus on high-interest debts first</li>
-                      </ul>
                     </div>
                   </CardContent>
                 </Card>
               </div>
+              )}
             </TabsContent>
 
             {/* My Debts Tab */}
@@ -966,26 +1203,31 @@ export default function LoansPage() {
                       <CardContent className="p-6">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-center gap-3">
-                            <div className={cn("p-2 rounded-lg", DEBT_TYPES[debt.debtType]?.color?.replace('text-', 'bg-').replace('-500', '-100') || 'bg-gray-100')}>
-                              {DEBT_TYPES[debt.debtType]?.icon || <FileText className="h-4 w-4" />}
+                            <div className={cn("p-2 rounded-lg", DEBT_TYPES[debt.debtType as keyof typeof DEBT_TYPES]?.color?.replace('text-', 'bg-').replace('-500', '-100') || 'bg-gray-100')}>
+                              {DEBT_TYPES[debt.debtType as keyof typeof DEBT_TYPES]?.icon || <FileText className="h-4 w-4" />}
                             </div>
                                                          <div>
                                <h3 className="font-semibold text-lg">{debt.name}</h3>
                                <p className="text-sm text-muted-foreground">
-                                 {DEBT_TYPES[debt.debtType]?.label || 'Other'} • {(debt.interestRate || 0).toFixed(1)}% APR
+                                 {DEBT_TYPES[debt.debtType as keyof typeof DEBT_TYPES]?.label || 'Other'} • {(debt.interestRate || 0).toFixed(1)}% APR
                                </p>
                              </div>
                           </div>
                           
                                                      <div className="flex items-center gap-2">
-                             <Badge className={PRIORITY_COLORS[debt.priority] || PRIORITY_COLORS.medium}>
+                             <Badge className={PRIORITY_COLORS[debt.priority as keyof typeof PRIORITY_COLORS] || PRIORITY_COLORS.medium}>
                                {(debt.priority || 'medium').charAt(0).toUpperCase() + (debt.priority || 'medium').slice(1)} Priority
                              </Badge>
                                                          {debt.isComplete && (
-                               <Badge className="bg-primary/10 text-primary border-primary/20">
-                                 <CheckCircle className="h-3 w-3 mr-1" />
-                                 Complete
-                               </Badge>
+                               <Button
+                                 variant="ghost"
+                                 size="sm"
+                                 onClick={() => handlePaidOffDebtClick(debt as any)}
+                                 className="bg-green-100 text-green-700 hover:bg-green-200 border-green-200"
+                               >
+                                 <CheckCircle className="h-4 w-4 mr-1" />
+                                 Paid Off
+                               </Button>
                              )}
                           </div>
                         </div>
@@ -1413,6 +1655,16 @@ export default function LoansPage() {
           </Tabs>
         </motion.section>
       </div>
+
+      {/* Paid Off Debt Modal */}
+      <PaidOffDebtModal
+        isOpen={paidOffDebtModal.isOpen}
+        onClose={() => setPaidOffDebtModal(prev => ({ ...prev, isOpen: false }))}
+        debtName={paidOffDebtModal.debtName}
+        monthlyPayment={paidOffDebtModal.monthlyPayment}
+        totalAmount={paidOffDebtModal.totalAmount}
+        interestSaved={paidOffDebtModal.interestSaved}
+      />
     </motion.div>
   );
 }

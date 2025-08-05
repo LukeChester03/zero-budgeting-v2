@@ -473,250 +473,305 @@ export default function SavingsDashboard() {
           </Card>
         </motion.section>
 
-        {/* Charts Section */}
-        <motion.section variants={itemVariants} className="mb-8 mt-16">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Savings Over Time Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5" />
-                  Savings Over Time
-                </CardTitle>
-                <CardDescription>
-                  Your monthly savings and cumulative progress
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                                {false ? (
-                   <ChartContainer
-                     config={{
-                       savings: {
-                         label: "Monthly Savings",
-                         theme: {
-                           light: "hsl(var(--primary))",
-                           dark: "hsl(var(--primary))",
-                         },
-                       },
-                       cumulative: {
-                         label: "Cumulative Savings",
-                         theme: {
-                           light: "hsl(var(--ring))",
-                           dark: "hsl(var(--ring))",
-                         },
-                       },
-                     }}
-                     className="h-64"
-                   >
-                    <LineChart data={savingsData.savingsOverTime}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis 
-                        dataKey="month" 
-                        tickFormatter={(value) => {
-                          const date = new Date(value);
-                          return date.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
-                        }}
-                      />
-                      <YAxis 
-                        tickFormatter={(value) => `£${value}`}
-                      />
-                      <ChartTooltip 
-                        content={({ active, payload, label }) => {
-                          if (!active || !payload?.length) return null;
-                          const date = new Date(label);
-                          return (
-                            <ChartTooltipContent
-                              active={active}
-                              payload={payload}
-                              label={date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
-                              formatter={(value: any, name: any) => [`£${value.toFixed(2)}`, String(name)]}
-                            />
-                          );
-                        }}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="savings" 
-                        strokeWidth={3}
-                        dot={{ strokeWidth: 2, r: 4 }}
-                        activeDot={{ r: 6, strokeWidth: 2 }}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="cumulative" 
-                        strokeWidth={2}
-                        strokeDasharray="5 5"
-                        dot={{ strokeWidth: 2, r: 3 }}
-                        activeDot={{ r: 5, strokeWidth: 2 }}
-                      />
-                    </LineChart>
-                  </ChartContainer>
-                ) : (
-                  <div className="h-64 flex items-center justify-center text-muted-foreground">
+
+
+                 {/* Financial Analysis Charts */}
+         <motion.section variants={itemVariants} className="mb-8">
+           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                           {/* Savings Rate vs Recommended */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Savings Rate Analysis
+                  </CardTitle>
+                  <CardDescription>
+                    Compare your savings rate to financial recommendations based on your average income
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Your Rate</span>
+                      <span className="text-lg font-bold text-primary">{savingsData.savingsRate.toFixed(1)}%</span>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Emergency Fund (3-6 months)</span>
+                        <span className="text-green-600">10-20%</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Retirement (15% rule)</span>
+                        <span className="text-blue-600">15%</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">50/30/20 Rule</span>
+                        <span className="text-purple-600">20%</span>
+                      </div>
+                    </div>
+                    <div className="h-32 flex items-end justify-center gap-1">
+                      <div className="w-8 bg-muted rounded-t-sm" style={{ height: '20%' }}>
+                        <div className="w-full bg-green-500 rounded-t-sm" style={{ height: '10%' }}></div>
+                      </div>
+                      <div className="w-8 bg-muted rounded-t-sm" style={{ height: '30%' }}>
+                        <div className="w-full bg-blue-500 rounded-t-sm" style={{ height: '15%' }}></div>
+                      </div>
+                      <div className="w-8 bg-muted rounded-t-sm" style={{ height: '40%' }}>
+                        <div className="w-full bg-purple-500 rounded-t-sm" style={{ height: '20%' }}></div>
+                      </div>
+                      <div className="w-8 bg-primary rounded-t-sm" style={{ height: `${Math.min(savingsData.savingsRate * 2, 100)}%` }}></div>
+                    </div>
+                    <div className="text-center text-xs text-muted-foreground">
+                      Your rate vs recommended benchmarks
+                    </div>
+                    {(() => {
+                      // Calculate average monthly income from all budgets
+                      const averageMonthlyIncome = budgets.length > 0 
+                        ? budgets.reduce((sum, budget) => sum + budget.income, 0) / budgets.length 
+                        : income;
+                      
+                      return (
+                        <div className="text-center text-xs text-muted-foreground pt-2 border-t">
+                          Based on £{averageMonthlyIncome.toFixed(0)} average monthly income
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </CardContent>
+              </Card>
+
+                           {/* Savings Velocity */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" />
+                    Savings Velocity
+                  </CardTitle>
+                  <CardDescription>
+                    How quickly you're building wealth
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="text-center p-3 rounded-lg bg-green-500/10">
+                        <p className="text-2xl font-bold text-green-600">£{savingsData.monthlySavings.toFixed(0)}</p>
+                        <p className="text-xs text-muted-foreground">Monthly Velocity</p>
+                      </div>
+                      <div className="text-center p-3 rounded-lg bg-blue-500/10">
+                        <p className="text-2xl font-bold text-blue-600">£{(savingsData.monthlySavings * 12).toFixed(0)}</p>
+                        <p className="text-xs text-muted-foreground">Annual Velocity</p>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {(() => {
+                        // Calculate average monthly income from all budgets
+                        const averageMonthlyIncome = budgets.length > 0 
+                          ? budgets.reduce((sum, budget) => sum + budget.income, 0) / budgets.length 
+                          : income;
+                        
+                        return (
+                          <>
+                            <div className="flex items-center justify-between text-sm">
+                              <span>Emergency Fund (3 months)</span>
+                              <span className="font-medium">{savingsData.monthlySavings > 0 ? (averageMonthlyIncome * 3 / savingsData.monthlySavings).toFixed(1) : '∞'} months</span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <span>Emergency Fund (6 months)</span>
+                              <span className="font-medium">{savingsData.monthlySavings > 0 ? (averageMonthlyIncome * 6 / savingsData.monthlySavings).toFixed(1) : '∞'} months</span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <span>£10k Savings Goal</span>
+                              <span className="font-medium">{savingsData.monthlySavings > 0 ? (10000 / savingsData.monthlySavings).toFixed(1) : '∞'} months</span>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+                                                                                                               {/* Wealth Building Timeline */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Calendar className="h-5 w-5" />
+                      Wealth Building Timeline
+                    </CardTitle>
+                    <CardDescription>
+                      Your path to financial milestones based on your average monthly income
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="space-y-3">
+                        {(() => {
+                          // Calculate average monthly income from all budgets
+                          const averageMonthlyIncome = budgets.length > 0 
+                            ? budgets.reduce((sum, budget) => sum + budget.income, 0) / budgets.length 
+                            : income;
+                          
+                          // Calculate saved amounts for each milestone category
+                          const getSavedForCategory = (categoryKeywords: string[]) => {
+                            return budgets.reduce((total, budget) => {
+                              const categorySavings = budget.allocations
+                                .filter(alloc => 
+                                  categoryKeywords.some(keyword => 
+                                    alloc.category.toLowerCase().includes(keyword.toLowerCase())
+                                  )
+                                )
+                                .reduce((sum, alloc) => sum + alloc.amount, 0);
+                              return total + categorySavings;
+                            }, 0);
+                          };
+                          
+                          return [
+                            { 
+                              milestone: `£${(averageMonthlyIncome * 3).toFixed(0)} Emergency Fund`, 
+                              target: averageMonthlyIncome * 3, 
+                              color: "bg-green-500",
+                              description: "3 months of expenses",
+                              categoryKeywords: ["emergency", "emergency fund", "emergency savings"]
+                            },
+                            { 
+                              milestone: `£${(averageMonthlyIncome * 6).toFixed(0)} Safety Net`, 
+                              target: averageMonthlyIncome * 6, 
+                              color: "bg-blue-500",
+                              description: "6 months of expenses",
+                              categoryKeywords: ["safety", "safety net", "buffer", "reserve"]
+                            },
+                            { 
+                              milestone: `£${(averageMonthlyIncome * 12).toFixed(0)} Foundation`, 
+                              target: averageMonthlyIncome * 12, 
+                              color: "bg-purple-500",
+                              description: "1 year of expenses",
+                              categoryKeywords: ["foundation", "long term", "long-term", "stability"]
+                            },
+                            { 
+                              milestone: `£${(averageMonthlyIncome * 24).toFixed(0)} Wealth Building`, 
+                              target: averageMonthlyIncome * 24, 
+                              color: "bg-orange-500",
+                              description: "2 years of expenses",
+                              categoryKeywords: ["wealth", "investment", "pension", "retirement", "wealth building"]
+                            }
+                                                    ].map((item, index) => {
+                             const savedAmount = getSavedForCategory(item.categoryKeywords);
+                             const monthsToTarget = savingsData.monthlySavings > 0 ? item.target / savingsData.monthlySavings : 0;
+                             const progress = Math.min((savedAmount / item.target) * 100, 100);
+                             const isCompleted = progress >= 100;
+                             return (
+                               <div key={index} className="space-y-2">
+                                 <div className="flex items-center justify-between text-sm">
+                                   <div className="flex items-center gap-2">
+                                     <span className="font-medium">{item.milestone}</span>
+                                     {isCompleted && (
+                                       <CheckCircle className="h-4 w-4 text-green-500" />
+                                     )}
+                                   </div>
+                                   <span className={isCompleted ? "text-green-600 font-medium" : "text-muted-foreground"}>
+                                     {isCompleted 
+                                       ? "100% reached" 
+                                       : monthsToTarget > 0 
+                                         ? `${monthsToTarget.toFixed(1)} months` 
+                                         : '∞'
+                                     }
+                                   </span>
+                                 </div>
+                                 <div className="w-full bg-muted rounded-full h-2">
+                                   <div 
+                                     className={`h-2 rounded-full ${item.color}`}
+                                     style={{ width: `${progress}%` }}
+                                   ></div>
+                                 </div>
+                                 <div className="flex justify-between text-xs text-muted-foreground">
+                                   <span>{item.description}</span>
+                                   <span>£{savedAmount.toFixed(0)} saved</span>
+                                 </div>
+                               </div>
+                             );
+                           });
+                        })()}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                           {/* Savings Efficiency Score */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5" />
+                    Savings Efficiency Score
+                  </CardTitle>
+                  <CardDescription>
+                    How well you're optimizing your savings based on your average income
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
                     <div className="text-center">
-                      <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>Need 3+ months of data</p>
-                      <p className="text-sm">Create at least 3 budgets to see your savings progress over time</p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Category Breakdown Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5" />
-                  Savings Breakdown
-                </CardTitle>
-                <CardDescription>
-                  Distribution of your savings by category
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                                {false ? (
-                   <ChartContainer
-                     config={{
-                       value: {
-                         label: "Amount",
-                         theme: {
-                           light: "hsl(var(--primary))",
-                           dark: "hsl(var(--primary))",
-                         },
-                       },
-                     }}
-                     className="h-64"
-                   >
-                     <BarChart data={savingsData.categoryChartData}>
-                       <CartesianGrid strokeDasharray="3 3" />
-                       <XAxis 
-                         dataKey="name" 
-                         angle={-45}
-                         textAnchor="end"
-                         height={80}
-                       />
-                       <YAxis 
-                         tickFormatter={(value) => `£${value}`}
-                       />
-                       <ChartTooltip 
-                         content={({ active, payload, label }) => {
-                           if (!active || !payload?.length) return null;
-                           return (
-                             <ChartTooltipContent
-                               active={active}
-                               payload={payload}
-                               label={label}
-                               formatter={(value: any, name: any) => [`£${value.toFixed(2)}`, 'Amount']}
-                             />
-                           );
-                         }}
-                       />
-                       <Bar 
-                         dataKey="value" 
-                         radius={[4, 4, 0, 0]}
-                       />
-                     </BarChart>
-                   </ChartContainer>
-                 ) : (
-                  <div className="h-64 flex items-center justify-center text-muted-foreground">
-                    <div className="text-center">
-                      <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No savings data yet</p>
-                      <p className="text-sm">Allocate money to Emergency Fund, Investments, or Pension categories to see breakdown</p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </motion.section>
-
-        {/* Savings Trend & Projections */}
-        <motion.section variants={itemVariants} className="mb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Savings Trend */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5" />
-                  Savings Trend
-                </CardTitle>
-                <CardDescription>
-                  Your savings performance over time
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Recent 3 Months</p>
-                    <p className="text-2xl font-bold">£{savingsData.recentSavings.toFixed(2)}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Previous 3 Months</p>
-                    <p className="text-2xl font-bold">£{savingsData.previousSavings.toFixed(2)}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-2 p-4 rounded-lg bg-muted/50">
-                  {getTrendIcon(savingsData.trendPercentage)}
-                  <span className={cn("font-semibold", getTrendColor(savingsData.trendPercentage))}>
-                    {savingsData.trendPercentage > 0 ? "+" : ""}{savingsData.trendPercentage.toFixed(1)}%
-                  </span>
-                  <span className="text-sm text-muted-foreground">vs previous period</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Projections */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calculator className="h-5 w-5" />
-                  Future Projections
-                </CardTitle>
-                <CardDescription>
-                  Based on your current savings rate
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {savingsData.monthlySavings > 0 ? (
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-green-600" />
-                        <span className="font-medium">6 Months</span>
+                      <div className="relative w-24 h-24 mx-auto">
+                        <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 36 36">
+                          <path
+                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                            fill="none"
+                            stroke="hsl(var(--muted))"
+                            strokeWidth="2"
+                          />
+                          <path
+                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                            fill="none"
+                            stroke="hsl(var(--primary))"
+                            strokeWidth="2"
+                            strokeDasharray={`${Math.min(savingsData.savingsRate * 5, 100)} 100`}
+                          />
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-xl font-bold">{Math.min(savingsData.savingsRate * 5, 100).toFixed(0)}</span>
+                        </div>
                       </div>
-                      <span className="font-bold text-green-600">£{savingsData.sixMonthProjection.toFixed(2)}</span>
+                      <p className="text-sm text-muted-foreground mt-2">Efficiency Score</p>
                     </div>
-                    
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-blue-600" />
-                        <span className="font-medium">1 Year</span>
-                      </div>
-                      <span className="font-bold text-blue-600">£{savingsData.oneYearProjection.toFixed(2)}</span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="h-4 w-4 text-purple-600" />
-                        <span className="font-medium">Annual Rate</span>
-                      </div>
-                      <span className="font-bold text-purple-600">{savingsData.savingsRate.toFixed(1)}%</span>
+                    <div className="space-y-2 text-xs">
+                      {(() => {
+                        // Calculate average monthly income from all budgets
+                        const averageMonthlyIncome = budgets.length > 0 
+                          ? budgets.reduce((sum, budget) => sum + budget.income, 0) / budgets.length 
+                          : income;
+                        
+                        return (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <span>Rate vs 20% Target</span>
+                              <span className={savingsData.savingsRate >= 20 ? "text-green-600" : "text-orange-600"}>
+                                {savingsData.savingsRate >= 20 ? "✓" : "✗"}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span>Consistent Savings</span>
+                              <span className={budgets.length >= 3 ? "text-green-600" : "text-orange-600"}>
+                                {budgets.length >= 3 ? "✓" : "✗"}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span>Goal Progress</span>
+                              <span className={savingsData.goalProgress.length > 0 ? "text-green-600" : "text-orange-600"}>
+                                {savingsData.goalProgress.length > 0 ? "✓" : "✗"}
+                              </span>
+                            </div>
+                            <div className="pt-2 border-t text-center text-muted-foreground">
+                              Based on £{averageMonthlyIncome.toFixed(0)} avg monthly income
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Calculator className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p className="text-sm">No projections available</p>
-                    <p className="text-xs">Create budgets with savings to see future projections</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </motion.section>
+                </CardContent>
+              </Card>
+           </div>
+         </motion.section>
 
         {/* Category Breakdown & Goals */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">

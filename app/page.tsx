@@ -52,6 +52,8 @@ export default function Home() {
   const getSavedAmountForGoal = useFirebaseStore((s) => s.getSavedAmountForGoal);
   const getRepaidAmountForDebt = useFirebaseStore((s) => s.getRepaidAmountForDebt);
 
+
+
   // Helper function to handle floating-point precision when comparing to zero
   const isZero = (value: number) => Math.abs(value) < 0.01;
 
@@ -61,6 +63,11 @@ export default function Home() {
   const recentBudgets = budgets.slice(-3).reverse();
   const currentMonth = new Date().toLocaleString("default", { month: "long", year: "numeric" });
   const hasCurrentBudget = budgets.some(b => b.month === currentMonth);
+  
+  // Calculate savings rate and debt-to-income ratio based on total income across all budgets (like in savings page)
+  const totalIncome = budgets.reduce((sum, budget) => sum + budget.income, 0);
+  const savingsRate = totalIncome > 0 ? (totalSaved / totalIncome) * 100 : 0;
+  const debtToIncomeRatio = totalIncome > 0 ? (totalDebtRepayments / totalIncome) * 100 : 0;
 
   const handleAddBudget = () => router.push("/budget");
   const handleViewSavings = () => router.push("/savings");
@@ -594,11 +601,11 @@ export default function Home() {
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-xs sm:text-sm font-medium">Savings Rate</span>
                     <span className="text-xs sm:text-sm text-muted-foreground">
-                      {income > 0 ? ((totalSaved / income) * 100).toFixed(1) : 0}%
+                      {savingsRate.toFixed(1)}%
                     </span>
                   </div>
                   <Progress 
-                    value={income > 0 ? (totalSaved / income) * 100 : 0} 
+                    value={savingsRate} 
                     className="h-2"
                   />
                 </div>
@@ -608,11 +615,11 @@ export default function Home() {
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-xs sm:text-sm font-medium">Debt to Income</span>
                     <span className="text-xs sm:text-sm text-muted-foreground">
-                      {income > 0 ? ((totalDebtRepayments / income) * 100).toFixed(1) : 0}%
+                      {debtToIncomeRatio.toFixed(1)}%
                     </span>
                   </div>
                   <Progress 
-                    value={income > 0 ? (totalDebtRepayments / income) * 100 : 0} 
+                    value={debtToIncomeRatio} 
                     className="h-2"
                   />
                 </div>
@@ -626,12 +633,13 @@ export default function Home() {
                     </div>
                     <div className="space-y-2">
                       {goals.slice(0, 3).map((goal) => {
-                        const progress = goal.target > 0 ? (goal.saved / goal.target) * 100 : 0;
+                        const savedAmount = getSavedAmountForGoal(goal.title);
+                        const progress = goal.target > 0 ? (savedAmount / goal.target) * 100 : 0;
                         return (
                           <div key={goal.id} className="space-y-1">
                             <div className="flex justify-between items-center text-xs">
                               <span className="truncate">{goal.title}</span>
-                              <span>£{goal.saved.toFixed(0)} / £{goal.target.toFixed(0)}</span>
+                              <span>£{savedAmount.toFixed(0)} / £{goal.target.toFixed(0)}</span>
                             </div>
                             <Progress value={progress} className="h-1" />
                           </div>

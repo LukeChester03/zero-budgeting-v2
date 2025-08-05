@@ -82,27 +82,43 @@ export const firestoreUtils = {
     callback: (data: T[]) => void,
     userId?: string
   ): () => void {
-    const baseQuery = collection(db, collectionName);
-    
-    if (userId) {
-      const q = query(baseQuery, where("userId", "==", userId));
-      const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const data = querySnapshot.docs.map(doc => ({ 
-          id: doc.id, 
-          ...doc.data() 
-        })) as T[];
-        callback(data);
-      });
-      return unsubscribe;
-    } else {
-      const unsubscribe = onSnapshot(baseQuery, (querySnapshot) => {
-        const data = querySnapshot.docs.map(doc => ({ 
-          id: doc.id, 
-          ...doc.data() 
-        })) as T[];
-        callback(data);
-      });
-      return unsubscribe;
+    try {
+      const baseQuery = collection(db, collectionName);
+      
+      if (userId) {
+        const q = query(baseQuery, where("userId", "==", userId));
+        const unsubscribe = onSnapshot(q, 
+          (querySnapshot) => {
+            const data = querySnapshot.docs.map(doc => ({ 
+              id: doc.id, 
+              ...doc.data() 
+            })) as T[];
+            callback(data);
+          },
+          (error) => {
+            console.error(`Error in ${collectionName} listener:`, error);
+          }
+        );
+        return unsubscribe;
+      } else {
+        const unsubscribe = onSnapshot(baseQuery, 
+          (querySnapshot) => {
+            const data = querySnapshot.docs.map(doc => ({ 
+              id: doc.id, 
+              ...doc.data() 
+            })) as T[];
+            callback(data);
+          },
+          (error) => {
+            console.error(`Error in ${collectionName} listener:`, error);
+          }
+        );
+        return unsubscribe;
+      }
+    } catch (error) {
+      console.error(`Error setting up ${collectionName} listener:`, error);
+      // Return a no-op function if setup fails
+      return () => {};
     }
   },
 

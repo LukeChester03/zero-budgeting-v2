@@ -60,6 +60,7 @@ export interface BudgetTemplate {
   userId: string;
   title: string;
   categories: string[];
+  sections?: { title: string; categories: string[] }[];
   isDefault: boolean;
   createdAt?: any;
   updatedAt?: any;
@@ -206,18 +207,14 @@ export const useFirebaseStore = create<FirebaseStore>()(
               console.error('Error ensuring default budget templates:', templateError);
             }
             
-            // Add a delay to ensure user is fully authenticated before initializing listeners
-            setTimeout(() => {
-              console.log('Initializing Firebase listeners for user:', user.uid);
-              get().initializeFirebaseListeners();
-            }, 3000); // Increased delay to ensure proper authentication
+            // Initialize Firebase listeners immediately
+            console.log('Initializing Firebase listeners for user:', user.uid);
+            get().initializeFirebaseListeners();
           } catch (error) {
             console.error('Error loading user profile:', error);
             // Still initialize listeners even if profile loading fails
-            setTimeout(() => {
-              console.log('Initializing Firebase listeners after profile load error');
-              get().initializeFirebaseListeners();
-            }, 3000);
+            console.log('Initializing Firebase listeners after profile load error');
+            get().initializeFirebaseListeners();
           }
         } else {
           console.log('User logged out, cleaning up');
@@ -515,6 +512,16 @@ export const useFirebaseStore = create<FirebaseStore>()(
       getSavedAmountForGoal: (goalTitle) => {
         const { budgets } = get();
         return budgets.reduce((total, budget) => {
+          // Look for exact matches first
+          const exactMatch = budget.allocations.find(
+            allocation => allocation.category === goalTitle
+          );
+          
+          if (exactMatch) {
+            return total + exactMatch.amount;
+          }
+          
+          // If no exact match, look for partial matches
           const goalAllocations = budget.allocations.filter(
             allocation => {
               const categoryLower = allocation.category.toLowerCase();

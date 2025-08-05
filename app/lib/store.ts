@@ -98,7 +98,7 @@ export const useBudgetStore = create<BudgetState>()(
 
       getTotalSaved: () => {
         const budgets = get().budgets;
-        const savingsCategories = ["Emergency Fund", "Investments", "Pension"];
+        const savingsCategories = ["Emergency Fund", "Safety Net", "Foundation", "Investments", "Pension"];
         
         return budgets.reduce((sum, budget) => {
           const savingsAmount = budget.allocations

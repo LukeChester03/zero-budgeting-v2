@@ -6,7 +6,7 @@ export type BudgetCategoryGroup = {
 export const budgetTemplate: BudgetCategoryGroup[] = [
   {
     title: "Savings & Investments",
-    categories: ["Emergency Fund", "Investments", "Pension"],
+    categories: ["Emergency Fund", "Safety Net", "Foundation", "Investments", "Pension"],
   },
   {
     title: "Goals",

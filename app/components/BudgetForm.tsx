@@ -8,6 +8,7 @@ import AddCategoryModal from "./AddCategoryModal";
 import CustomCategoryManager from "./CustomCategoryManager";
 import SaveTemplateModal from "./SaveTemplateModal";
 import TemplateSelector from "./TemplateSelector";
+import InfoModal from "./InfoModal";
 import { motion, Variants } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -97,6 +98,7 @@ import {
   Banknote as BanknoteIcon,
   Wallet as WalletIcon,
   Building as BuildingIcon,
+  HelpCircle,
   Eye,
   EyeOff,
   Bookmark,
@@ -171,6 +173,8 @@ export default function BudgetForm() {
   const [overBudgetReason, setOverBudgetReason] = useState("");
   const [pendingBudgetData, setPendingBudgetData] = useState<any>(null);
   const [budgetSaved, setBudgetSaved] = useState(false);
+  const [infoModalOpen, setInfoModalOpen] = useState(false);
+  const [infoModalCategory, setInfoModalCategory] = useState("");
 
   // Get available months for budget selection
   const availableMonths = useMemo(() => {
@@ -273,7 +277,7 @@ export default function BudgetForm() {
       },
       {
         title: "Savings",
-        categories: ["Emergency Fund", "Investments", "Pension"],
+        categories: ["Emergency Fund", "Safety Net", "Foundation", "Investments", "Pension"],
         icon: <Target className="h-4 w-4" />
       },
       {
@@ -510,10 +514,47 @@ export default function BudgetForm() {
         savedBudgetId = currentBudget.id;
         console.log('Budget updated successfully');
       } else {
-        // Create new budget - allocations are already included in budgetData
-        const newBudget = await addBudget(budgetWithoutReason);
+        // Create new budget with automatic goal and debt allocation
+        const { goals, debts } = useFirebaseStore.getState();
+        const activeGoals = goals.filter(goal => goal.isActive);
+        const activeDebts = debts.filter(debt => debt.isActive);
+        
+        // Add goal contributions to allocations
+        let updatedAllocations = [...budgetWithoutReason.allocations];
+        activeGoals.forEach(goal => {
+          const existingAllocation = updatedAllocations.find(alloc => alloc.category === goal.title);
+          if (existingAllocation) {
+            existingAllocation.amount += goal.monthlyContribution;
+          } else {
+            updatedAllocations.push({
+              category: goal.title,
+              amount: goal.monthlyContribution
+            });
+          }
+        });
+        
+        // Add debt payments to allocations
+        activeDebts.forEach(debt => {
+          const existingAllocation = updatedAllocations.find(alloc => alloc.category === debt.name);
+          if (existingAllocation) {
+            existingAllocation.amount += debt.monthlyRepayment;
+          } else {
+            updatedAllocations.push({
+              category: debt.name,
+              amount: debt.monthlyRepayment
+            });
+          }
+        });
+        
+        // Create budget with updated allocations
+        const budgetWithAllocations = {
+          ...budgetWithoutReason,
+          allocations: updatedAllocations
+        };
+        
+        const newBudget = await addBudget(budgetWithAllocations);
         savedBudgetId = newBudget.id;
-        console.log('Budget created successfully');
+        console.log('Budget created successfully with goal and debt allocations');
       }
 
       setIsEditing(false);
@@ -596,6 +637,11 @@ export default function BudgetForm() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleOpenInfoModal = (category: string) => {
+    setInfoModalCategory(category);
+    setInfoModalOpen(true);
   };
 
   const showViewBudgetToast = (budgetId: string) => {
@@ -921,10 +967,21 @@ export default function BudgetForm() {
          <motion.div variants={itemVariants} className="mb-8">
            <Card className="border-red-200 bg-red-50/30">
              <CardHeader>
-               <CardTitle className="flex items-center gap-2 text-red-700">
-                 <CreditCard className="h-4 w-4 sm:h-5 sm:w-5" />
-                 Debt Allocations
-               </CardTitle>
+               <div className="flex items-center justify-between">
+                 <CardTitle className="flex items-center gap-2 text-red-700">
+                   <CreditCard className="h-4 w-4 sm:h-5 sm:w-5" />
+                   Debt Allocations
+                 </CardTitle>
+                 <Button
+                   type="button"
+                   variant="ghost"
+                   size="sm"
+                   onClick={() => handleOpenInfoModal("Debts")}
+                   className="h-4 w-4 p-0 text-muted-foreground hover:text-primary"
+                 >
+                   <HelpCircle className="h-3 w-3" />
+                 </Button>
+               </div>
              </CardHeader>
              <CardContent className="space-y-3">
                {debts.filter(d => d.isActive).map(debt => (
@@ -996,6 +1053,28 @@ export default function BudgetForm() {
                               section.title === "Goals" && "text-green-700",
                               section.title === "Debts" && "text-red-700"
                             )}>{section.title}</CardTitle>
+                            {section.title === "Savings" && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleOpenInfoModal("Savings")}
+                                className="h-4 w-4 p-0 text-muted-foreground hover:text-primary"
+                              >
+                                <HelpCircle className="h-3 w-3" />
+                              </Button>
+                            )}
+                            {section.title === "Debts" && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleOpenInfoModal("Debts")}
+                                className="h-4 w-4 p-0 text-muted-foreground hover:text-primary"
+                              >
+                                <HelpCircle className="h-3 w-3" />
+                              </Button>
+                            )}
                             {section.title === "Goals" && (
                               <Badge variant="outline" className="text-xs bg-green-100 text-green-700 border-green-300">
                                 Auto-allocated
@@ -1028,9 +1107,22 @@ export default function BudgetForm() {
                  return (
                    <div key={cat} className="space-y-2">
                      <div className="flex items-center justify-between">
-                       <Label className="text-xs sm:text-sm font-medium">
-                         {cat}
-                       </Label>
+                       <div className="flex items-center gap-2">
+                         <Label className="text-xs sm:text-sm font-medium">
+                           {cat}
+                         </Label>
+                         {(cat === "Safety Net" || cat === "Foundation" || cat === "Emergency Fund" || cat === "Investments") && (
+                           <Button
+                             type="button"
+                             variant="ghost"
+                             size="sm"
+                             onClick={() => handleOpenInfoModal(cat)}
+                             className="h-4 w-4 p-0 text-muted-foreground hover:text-primary"
+                           >
+                             <HelpCircle className="h-3 w-3" />
+                           </Button>
+                         )}
+                       </div>
                        <div className="flex items-center gap-1">
                          {isGoalCategory && goal && (
                            <Badge variant="outline" className="text-xs">
@@ -1334,6 +1426,13 @@ export default function BudgetForm() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Info Modal */}
+      <InfoModal
+        open={infoModalOpen}
+        category={infoModalCategory}
+        onClose={() => setInfoModalOpen(false)}
+      />
     </motion.div>
     </div>
   );

@@ -239,8 +239,8 @@ export const userService = {
           "Electricity", "Gas", "Water", "Internet", "Phone",
           // Insurance
           "Life Insurance", "Health Insurance", "Pet Insurance",
-          // Savings
-          "Emergency Fund", "Investments", "Pension",
+                      // Savings
+            "Emergency Fund", "Safety Net", "Foundation", "Investments", "Pension",
           // Other
           "Entertainment", "Clothing", "Healthcare", "Gifts", "Holidays"
         ];
@@ -274,7 +274,7 @@ export const userService = {
             },
             {
               title: "Savings",
-              categories: ["Emergency Fund", "Investments", "Pension"]
+              categories: ["Emergency Fund", "Safety Net", "Foundation", "Investments", "Pension"]
             },
             {
               title: "Other",
@@ -287,7 +287,12 @@ export const userService = {
       } else {
         // Check if we need to migrate existing templates
         const defaultTemplate = existingTemplates.find(t => (t as any).isDefault);
-        if (defaultTemplate && (!(defaultTemplate as any).categories || (defaultTemplate as any).categories.length < 20)) {
+        if (defaultTemplate && (
+          !(defaultTemplate as any).categories || 
+          (defaultTemplate as any).categories.length < 20 ||
+          !(defaultTemplate as any).categories.includes("Safety Net") ||
+          !(defaultTemplate as any).categories.includes("Foundation")
+        )) {
           // Migrate to new structure
           console.log('Migrating existing template to new structure for user:', userId);
           const defaultCategories = [
@@ -302,7 +307,7 @@ export const userService = {
             // Insurance
             "Life Insurance", "Health Insurance", "Pet Insurance",
             // Savings
-            "Emergency Fund", "Investments", "Pension",
+            "Emergency Fund", "Safety Net", "Foundation", "Investments", "Pension",
             // Other
             "Entertainment", "Clothing", "Healthcare", "Gifts", "Holidays"
           ];
@@ -332,7 +337,7 @@ export const userService = {
               },
               {
                 title: "Savings",
-                categories: ["Emergency Fund", "Investments", "Pension"]
+                categories: ["Emergency Fund", "Safety Net", "Foundation", "Investments", "Pension"]
               },
               {
                 title: "Other",
