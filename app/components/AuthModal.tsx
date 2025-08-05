@@ -179,11 +179,29 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     setAuthError("");
 
     try {
+      console.log('AuthModal: Starting Google sign-in...');
       await signInWithGoogle();
+      console.log('AuthModal: Google sign-in completed successfully');
     } catch (error: unknown) {
-      console.error("Google sign in error:", error);
+      console.error("AuthModal: Google sign in error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
-      setAuthError(errorMessage || "Google sign in failed. Please try again.");
+      
+      // More specific error messages for Google sign-in
+      if (errorMessage.includes('popup-closed-by-user')) {
+        setAuthError("Sign-in was cancelled. Please try again.");
+      } else if (errorMessage.includes('popup-blocked')) {
+        setAuthError("Pop-up was blocked. Please allow pop-ups for this site and try again.");
+      } else if (errorMessage.includes('account-exists-with-different-credential')) {
+        setAuthError("An account already exists with this email. Please use a different sign-in method.");
+      } else if (errorMessage.includes('operation-not-allowed')) {
+        setAuthError("Google sign-in is not enabled. Please contact support.");
+      } else if (errorMessage.includes('network-request-failed')) {
+        setAuthError("Network error. Please check your internet connection and try again.");
+      } else if (errorMessage.includes('too-many-requests')) {
+        setAuthError("Too many failed attempts. Please try again later.");
+      } else {
+        setAuthError(errorMessage || "Google sign in failed. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }

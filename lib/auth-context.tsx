@@ -155,15 +155,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = async (): Promise<void> => {
     try {
       setError(null);
+      console.log('Starting Google sign-in process...');
+      
+      // Import Firebase Auth functions
       const { GoogleAuthProvider, signInWithPopup } = await import("firebase/auth");
+      
+      // Create Google Auth provider with custom parameters
       const provider = new GoogleAuthProvider();
+      provider.addScope('email');
+      provider.addScope('profile');
+      
+      console.log('Google provider created, attempting sign-in...');
+      
+      // Attempt sign-in with popup
       const userCredential = await signInWithPopup(auth, provider);
       
       console.log('Google sign-in successful for:', userCredential.user.uid);
+      console.log('User email:', userCredential.user.email);
+      console.log('User display name:', userCredential.user.displayName);
       
       // For Google sign-in, we need to check if user profile exists
       try {
+        console.log('Checking if user profile exists...');
         const existingProfile = await userService.getUserProfile(userCredential.user.uid);
+        
         if (!existingProfile) {
           console.log('No existing profile found, creating new profile...');
           // User profile doesn't exist, create it
@@ -172,21 +187,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           console.log('Existing profile found for Google sign-in');
         }
-      } catch (error) {
-        console.error('Error checking/creating user profile for Google sign-in:', error);
+      } catch (profileError) {
+        console.error('Error checking/creating user profile for Google sign-in:', profileError);
         // Don't throw error for profile creation as user is already signed in
+        // Just log the error for debugging
       }
+      
+      console.log('Google sign-in process completed successfully');
     } catch (error: unknown) {
       console.error("Google sign in error:", error);
+      
+      // More detailed error handling
       if (error instanceof Error) {
-        if (error.message === 'auth/popup-closed-by-user') {
+        const errorCode = (error as any).code;
+        console.log('Google sign-in error code:', errorCode);
+        
+        if (errorCode === 'auth/popup-closed-by-user') {
           throw new Error("Sign-in was cancelled");
-        } else if (error.message === 'auth/popup-blocked') {
+        } else if (errorCode === 'auth/popup-blocked') {
           throw new Error("Pop-up was blocked. Please allow pop-ups for this site");
+        } else if (errorCode === 'auth/account-exists-with-different-credential') {
+          throw new Error("An account already exists with the same email address but different sign-in credentials");
+        } else if (errorCode === 'auth/operation-not-allowed') {
+          throw new Error("Google sign-in is not enabled. Please contact support.");
+        } else if (errorCode === 'auth/network-request-failed') {
+          throw new Error("Network error. Please check your internet connection and try again.");
+        } else if (errorCode === 'auth/too-many-requests') {
+          throw new Error("Too many failed attempts. Please try again later");
         } else {
+          console.error('Unknown Google sign-in error:', error);
           throw new Error("Google sign in failed. Please try again.");
         }
       } else {
+        console.error('Non-Error Google sign-in error:', error);
         throw new Error("Google sign in failed. Please try again.");
       }
     }
