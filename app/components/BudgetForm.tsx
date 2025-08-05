@@ -673,21 +673,21 @@ export default function BudgetForm() {
   };
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
+    <div className="container mx-auto px-3 sm:px-6 py-4 sm:py-8">
       <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="max-w-4xl mx-auto space-y-6 sm:space-y-8"
+        className="max-w-4xl mx-auto space-y-4 sm:space-y-8"
       >
         {/* Budget Setup */}
         <motion.div variants={itemVariants}>
           <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
-            <CardContent className="p-4 sm:p-6">
-              <div className="space-y-4 sm:space-y-6">
+            <CardContent className="p-3 sm:p-6">
+              <div className="space-y-3 sm:space-y-6">
                 {/* Step 1: Month Selection */}
                 <div className="space-y-3">
-                  <Label className="text-base font-semibold">Step 1: Select Month</Label>
+                  <Label className="text-sm sm:text-base font-semibold">Step 1: Select Month</Label>
                   <Select value={selectedMonth || ""} onValueChange={handleMonthChange}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select month for your budget..." />
@@ -704,8 +704,8 @@ export default function BudgetForm() {
 
                 {/* Step 1.5: Template Selection */}
                 {selectedMonth && (
-                  <div className="space-y-3">
-                    <Label className="text-base font-semibold">Step 1.5: Load Template (Optional)</Label>
+                                  <div className="space-y-3">
+                  <Label className="text-sm sm:text-base font-semibold">Step 1.5: Load Template (Optional)</Label>
                     <TemplateSelector 
                       onTemplateSelect={handleTemplateSelect}
                       currentAllocations={allocationsArray}
@@ -716,7 +716,7 @@ export default function BudgetForm() {
                 {/* Step 2: Budget Status & Actions */}
                 {selectedMonth && (
                   <div className="space-y-4">
-                    <Label className="text-base font-semibold">Step 2: Budget Status</Label>
+                    <Label className="text-sm sm:text-base font-semibold">Step 2: Budget Status</Label>
                     
                     {currentBudget ? (
                       <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -726,7 +726,7 @@ export default function BudgetForm() {
                         </div>
                         
                         {/* Budget Details */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 mb-4">
                           <div className="bg-white/50 p-3 rounded">
                             <div className="text-xs text-blue-600 font-medium">Total Allocated</div>
                             <div className="text-base sm:text-lg font-bold text-blue-800">
@@ -756,17 +756,18 @@ export default function BudgetForm() {
                             onClick={handleEditBudget}
                             variant="outline"
                             size="sm"
-                            className="bg-blue-600 text-black hover:bg-blue-700"
+                            className="bg-blue-600 text-black hover:bg-blue-700 text-xs sm:text-sm"
                           >
-                            <Edit className="h-4 w-4 mr-2" />
+                            <Edit className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                             Edit Existing Budget
                           </Button>
                           <Button
                             onClick={handleCreateNew}
                             variant="outline"
                             size="sm"
+                            className="text-xs sm:text-sm"
                           >
-                            <Plus className="h-4 w-4 mr-2" />
+                            <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                             Create New Budget
                           </Button>
                         </div>
@@ -784,9 +785,9 @@ export default function BudgetForm() {
                           <Button
                             onClick={handleCreateNew}
                             size="sm"
-                            className="bg-green-600 text-white hover:bg-green-700"
+                            className="bg-green-600 text-white hover:bg-green-700 text-xs sm:text-sm"
                           >
-                            <Plus className="h-4 w-4 mr-2" />
+                            <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                             Create New Budget
                           </Button>
                         </div>
@@ -798,7 +799,7 @@ export default function BudgetForm() {
                 {/* Step 3: Load Previous Budget */}
                 {selectedMonth && !currentBudget && (
                   <div className="space-y-3">
-                    <Label className="text-base font-semibold">Step 3: Load Previous Budget (Optional)</Label>
+                    <Label className="text-sm sm:text-base font-semibold">Step 3: Load Previous Budget (Optional)</Label>
                     
                     {previousBudget && (
                       <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
@@ -813,9 +814,9 @@ export default function BudgetForm() {
                           onClick={handleResetToPrevious}
                           variant="outline"
                           size="sm"
-                          className="border-amber-300 text-amber-700 hover:bg-amber-100"
+                          className="border-amber-300 text-amber-700 hover:bg-amber-100 text-xs sm:text-sm"
                         >
-                          <RotateCcw className="h-4 w-4 mr-2" />
+                          <RotateCcw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                           Load from {previousBudget.month}
                         </Button>
                       </div>
@@ -851,7 +852,7 @@ export default function BudgetForm() {
                       <Calculator className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm font-medium text-muted-foreground">Current Status</span>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
                       <div>
                         <span className="text-muted-foreground">Selected Month:</span>
                         <span className="ml-2 font-medium">{selectedMonth}</span>
@@ -873,14 +874,14 @@ export default function BudgetForm() {
        {/* Budget Summary */}
        <motion.div variants={itemVariants} className="mb-8">
          <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
-           <CardContent className="p-4 sm:p-6">
-             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+           <CardContent className="p-3 sm:p-6">
+             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
                <div className="space-y-2">
                  <div className="flex items-center gap-2 text-muted-foreground">
                    <DollarSign className="h-4 w-4" />
                    <span className="text-xs sm:text-sm">Monthly Income</span>
                  </div>
-                 <div className="text-xl sm:text-2xl font-bold">£{income.toFixed(2)}</div>
+                 <div className="text-lg sm:text-xl lg:text-2xl font-bold">£{income.toFixed(2)}</div>
                </div>
 
                <div className="space-y-2">
@@ -888,7 +889,7 @@ export default function BudgetForm() {
                    <Target className="h-4 w-4" />
                    <span className="text-xs sm:text-sm">Allocated</span>
                  </div>
-                 <div className="text-xl sm:text-2xl font-bold">£{totalAllocated.toFixed(2)}</div>
+                 <div className="text-lg sm:text-xl lg:text-2xl font-bold">£{totalAllocated.toFixed(2)}</div>
                  <Progress value={allocationPercentage} className="h-2" />
                  <div className="text-xs text-muted-foreground">
                    {allocationPercentage.toFixed(1)}% of income
@@ -908,7 +909,7 @@ export default function BudgetForm() {
                      {showRemaining ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                    </Button>
                  </div>
-                 <div className={cn("text-xl sm:text-2xl font-bold", getStatusColor(remaining))}>
+                 <div className={cn("text-lg sm:text-xl lg:text-2xl font-bold", getStatusColor(remaining))}>
                    {showRemaining ? `£${isZero(remaining) ? "0.00" : remaining.toFixed(2)}` : "••••"}
                  </div>
                </div>
@@ -920,7 +921,7 @@ export default function BudgetForm() {
                  </div>
                  <Badge 
                    variant={isZero(remaining) ? "default" : remaining > 0 ? "secondary" : "destructive"}
-                   className="text-xs sm:text-sm"
+                   className="text-xs"
                  >
                    {isZero(remaining) ? "Balanced" : remaining > 0 ? "Under Budget" : "Over Budget"}
                  </Badge>
@@ -935,20 +936,20 @@ export default function BudgetForm() {
          <motion.div variants={itemVariants} className="mb-8">
            <Card className="border-green-200 bg-green-50/30">
              <CardHeader>
-               <CardTitle className="flex items-center gap-2 text-green-700">
-                 <Target className="h-4 w-4 sm:h-5 sm:w-5" />
-                 Goal Allocations
-               </CardTitle>
+                                <CardTitle className="flex items-center gap-2 text-green-700 text-sm sm:text-base lg:text-lg">
+                   <Target className="h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5" />
+                   Goal Allocations
+                 </CardTitle>
              </CardHeader>
              <CardContent className="space-y-3">
                {goals.filter(g => g.isActive).map(goal => (
                  <div key={goal.id} className="flex justify-between items-center p-2 bg-white/50 rounded">
                    <div className="flex items-center gap-2">
-                     <Target className="h-4 w-4 text-green-600" />
-                     <span className="font-medium text-sm sm:text-base">{goal.title}</span>
+                     <Target className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
+                     <span className="font-medium text-xs sm:text-sm lg:text-base">{goal.title}</span>
                    </div>
                    <div className="text-right">
-                     <div className="font-semibold text-green-700 text-sm sm:text-base">
+                     <div className="font-semibold text-green-700 text-xs sm:text-sm lg:text-base">
                        £{(amounts[goal.title] || 0).toFixed(2)}
                      </div>
                      <div className="text-xs text-muted-foreground">
@@ -968,8 +969,8 @@ export default function BudgetForm() {
            <Card className="border-red-200 bg-red-50/30">
              <CardHeader>
                <div className="flex items-center justify-between">
-                 <CardTitle className="flex items-center gap-2 text-red-700">
-                   <CreditCard className="h-4 w-4 sm:h-5 sm:w-5" />
+                 <CardTitle className="flex items-center gap-2 text-red-700 text-sm sm:text-base lg:text-lg">
+                   <CreditCard className="h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5" />
                    Debt Allocations
                  </CardTitle>
                  <Button
@@ -987,11 +988,11 @@ export default function BudgetForm() {
                {debts.filter(d => d.isActive).map(debt => (
                  <div key={debt.id} className="flex justify-between items-center p-2 bg-white/50 rounded">
                    <div className="flex items-center gap-2">
-                     <CreditCard className="h-4 w-4 text-red-600" />
-                     <span className="font-medium text-sm sm:text-base">{debt.name}</span>
+                     <CreditCard className="h-3 w-3 sm:h-4 sm:w-4 text-red-600" />
+                     <span className="font-medium text-xs sm:text-sm lg:text-base">{debt.name}</span>
                    </div>
                    <div className="text-right">
-                     <div className="font-semibold text-red-700 text-sm sm:text-base">
+                     <div className="font-semibold text-red-700 text-xs sm:text-sm lg:text-base">
                        £{(amounts[debt.name] || 0).toFixed(2)}
                      </div>
                      <div className="text-xs text-muted-foreground">
@@ -1009,8 +1010,8 @@ export default function BudgetForm() {
        <motion.div variants={itemVariants}>
          <Tabs defaultValue="categories" className="space-y-6">
            <TabsList className="grid w-full grid-cols-2">
-             <TabsTrigger value="categories">Budget Categories</TabsTrigger>
-             <TabsTrigger value="summary">Budget Summary</TabsTrigger>
+             <TabsTrigger value="categories" className="text-xs sm:text-sm">Budget Categories</TabsTrigger>
+             <TabsTrigger value="summary" className="text-xs sm:text-sm">Budget Summary</TabsTrigger>
            </TabsList>
 
                     <TabsContent value="categories" className="space-y-6">
@@ -1049,7 +1050,7 @@ export default function BudgetForm() {
                           <div className="flex items-center gap-2">
                             {CATEGORY_ICONS[section.title] || <Calculator className="h-4 w-4" />}
                             <CardTitle className={cn(
-                              "text-base sm:text-lg",
+                              "text-sm sm:text-base lg:text-lg",
                               section.title === "Goals" && "text-green-700",
                               section.title === "Debts" && "text-red-700"
                             )}>{section.title}</CardTitle>
@@ -1095,7 +1096,7 @@ export default function BudgetForm() {
                           title="Custom Categories" 
                         />
                         
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                {userCategories.map((cat) => {
                  // Check if this is a goal category
                  const isGoalCategory = section.title === "Goals";
@@ -1108,9 +1109,9 @@ export default function BudgetForm() {
                    <div key={cat} className="space-y-2">
                      <div className="flex items-center justify-between">
                        <div className="flex items-center gap-2">
-                         <Label className="text-xs sm:text-sm font-medium">
-                           {cat}
-                         </Label>
+                                                <Label className="text-xs sm:text-sm font-medium truncate">
+                         {cat}
+                       </Label>
                          {(cat === "Safety Net" || cat === "Foundation" || cat === "Emergency Fund" || cat === "Investments") && (
                            <Button
                              type="button"
@@ -1154,7 +1155,7 @@ export default function BudgetForm() {
                          value={amounts[cat] ?? ""}
                          onChange={(e) => handleAmountChange(cat, e.target.value)}
                          className={cn(
-                           "pr-8",
+                           "pr-8 text-sm sm:text-base",
                            !isEditing && currentBudget && "opacity-70 cursor-not-allowed",
                            isGoalCategory && !isEditable && "bg-green-50 border-green-200",
                            isDebtCategory && "bg-red-50 border-red-200"
@@ -1184,9 +1185,9 @@ export default function BudgetForm() {
                               <div key={debt.id} className="space-y-2">
                                 <div className="flex items-center gap-2">
                                   <CreditCard className="h-4 w-4 text-destructive" />
-                                  <Label className="text-xs sm:text-sm font-medium text-destructive">
-                                    {debt.name}
-                                  </Label>
+                                                                   <Label className="text-xs sm:text-sm font-medium text-destructive truncate">
+                                   {debt.name}
+                                 </Label>
                                   <Badge variant="destructive" className="text-xs">Debt</Badge>
                                 </div>
                                 <div className="relative">
@@ -1194,7 +1195,7 @@ export default function BudgetForm() {
                       type="number"
                       value={amounts[debt.name]?.toFixed(2) ?? "0.00"}
                       readOnly
-                                 className="bg-destructive/10 border-destructive/30 text-destructive cursor-not-allowed pr-8"
+                                 className="bg-destructive/10 border-destructive/30 text-destructive cursor-not-allowed pr-8 text-sm sm:text-base"
                     />
                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-destructive">
                                  £
@@ -1214,38 +1215,38 @@ export default function BudgetForm() {
              {/* Budget Overview Card */}
              <Card>
                <CardHeader>
-                 <CardTitle className="flex items-center gap-2">
-                   <Calculator className="h-5 w-5" />
+                 <CardTitle className="flex items-center gap-2 text-sm sm:text-base lg:text-lg">
+                   <Calculator className="h-4 w-4 sm:h-5 sm:w-5" />
                    Budget Overview
                  </CardTitle>
                </CardHeader>
                <CardContent className="space-y-6">
                  {/* Summary Stats */}
-                 <div className="grid grid-cols-4 gap-4">
-                   <div className="text-center p-3 bg-blue-50 rounded-lg">
+                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+                   <div className="text-center p-2 sm:p-3 bg-blue-50 rounded-lg">
                      <p className="text-xs text-muted-foreground">Total Allocated</p>
-                     <p className="text-lg font-bold text-blue-700">£{totalAllocated.toFixed(2)}</p>
+                     <p className="text-sm sm:text-lg font-bold text-blue-700">£{totalAllocated.toFixed(2)}</p>
                    </div>
-                   <div className="text-center p-3 bg-green-50 rounded-lg">
+                   <div className="text-center p-2 sm:p-3 bg-green-50 rounded-lg">
                      <p className="text-xs text-muted-foreground">Goal Allocations</p>
-                     <p className="text-lg font-bold text-green-700">
+                     <p className="text-sm sm:text-lg font-bold text-green-700">
                        £{goals.filter(g => g.isActive).reduce((sum, goal) => sum + (amounts[goal.title] || 0), 0).toFixed(2)}
                      </p>
                    </div>
                    {debts.filter(d => d.isActive).length > 0 && (
-                     <div className="text-center p-3 bg-red-50 rounded-lg">
+                     <div className="text-center p-2 sm:p-3 bg-red-50 rounded-lg">
                        <p className="text-xs text-muted-foreground">Debt Allocations</p>
-                       <p className="text-lg font-bold text-red-700">
+                       <p className="text-sm sm:text-lg font-bold text-red-700">
                          £{debts.filter(d => d.isActive).reduce((sum, debt) => sum + (amounts[debt.name] || 0), 0).toFixed(2)}
                        </p>
                      </div>
                    )}
                    <div className={cn(
-                     "text-center p-3 rounded-lg",
+                     "text-center p-2 sm:p-3 rounded-lg",
                      debts.filter(d => d.isActive).length > 0 ? "bg-amber-50" : "bg-amber-50 col-span-2"
                    )}>
                      <p className="text-xs text-muted-foreground">Remaining</p>
-                     <p className="text-lg font-bold text-amber-700">£{remaining.toFixed(2)}</p>
+                     <p className="text-sm sm:text-lg font-bold text-amber-700">£{remaining.toFixed(2)}</p>
                    </div>
                  </div>
 
@@ -1337,21 +1338,23 @@ export default function BudgetForm() {
       </motion.div>
 
       {/* Action Buttons */}
-      <motion.div variants={itemVariants} className="mt-8 flex justify-end gap-4">
+      <motion.div variants={itemVariants} className="mt-6 sm:mt-8 flex flex-col sm:flex-row justify-end gap-3 sm:gap-4">
         <Button
           onClick={() => setSaveTemplateModalOpen(true)}
           variant="outline"
           disabled={Object.keys(amounts).length === 0}
+          className="text-xs sm:text-sm"
         >
-          <Bookmark className="h-4 w-4 mr-2" />
+          <Bookmark className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
           Save as Template
         </Button>
         <Button
           onClick={handleResetToPrevious}
           variant="outline"
           disabled={!previousBudget}
+          className="text-xs sm:text-sm"
         >
-          <RotateCcw className="h-4 w-4 mr-2" />
+          <RotateCcw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
           Reset to Previous
         </Button>
         <div className="flex flex-col items-end gap-1">
@@ -1359,12 +1362,12 @@ export default function BudgetForm() {
             onClick={handleSaveBudget}
             disabled={!selectedMonth || (!!currentBudget && !isEditing) || budgetSaved || remaining > 0}
             className={cn(
-              "bg-primary hover:bg-primary/90",
+              "bg-primary hover:bg-primary/90 text-xs sm:text-sm",
               remaining < 0 && !isZero(remaining) && "bg-amber-600 hover:bg-amber-700",
               budgetSaved && "bg-green-600 hover:bg-green-700 cursor-not-allowed"
             )}
           >
-            <Save className="h-4 w-4 mr-2" />
+            <Save className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
             {budgetSaved ? "Budget Saved" : 
              remaining > 0 ? "Allocate Remaining £" + remaining.toFixed(2) :
              (currentBudget && isEditing ? "Update Budget" : "Save Budget")}

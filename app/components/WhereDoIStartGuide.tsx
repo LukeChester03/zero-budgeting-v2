@@ -81,10 +81,10 @@ const guideSteps: GuideStep[] = [
     icon: <Plus className="h-8 w-8 text-blue-500" />,
     content: (
       <div className="space-y-4">
-        <p className="text-muted-foreground">
+        <p className="text-sm sm:text-base text-muted-foreground">
           Create a zero-based budget where every pound has a purpose. Allocate your income to different categories like housing, food, savings, and debt payments.
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           <Card className="border-blue-200 dark:border-blue-800">
             <CardContent className="p-3">
               <div className="flex items-center gap-2 mb-2">
@@ -136,7 +136,7 @@ const guideSteps: GuideStep[] = [
     icon: <Target className="h-8 w-8 text-purple-500" />,
     content: (
       <div className="space-y-4">
-        <p className="text-muted-foreground">
+        <p className="text-sm sm:text-base text-muted-foreground">
           Create specific savings goals with target amounts and timelines. Track your progress and celebrate milestones along the way.
         </p>
         <div className="space-y-3">
@@ -188,10 +188,7 @@ const guideSteps: GuideStep[] = [
         </div>
       </div>
     ),
-    action: {
-      text: "Set Goals",
-      href: "/savings"
-    }
+    
   },
   {
     title: "Track Your Debts",
@@ -199,10 +196,10 @@ const guideSteps: GuideStep[] = [
     icon: <CreditCard className="h-8 w-8 text-orange-500" />,
     content: (
       <div className="space-y-4">
-        <p className="text-muted-foreground">
+        <p className="text-sm sm:text-base text-muted-foreground">
           Add all your debts to track repayment progress, interest costs, and create a strategic payoff plan.
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           <Card className="border-orange-200 dark:border-orange-800">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
@@ -271,91 +268,31 @@ const guideSteps: GuideStep[] = [
     }
   },
   {
-    title: "Monitor Your Progress",
-    subtitle: "Track your financial journey",
+    title: "Analyze Your Spending",
+    subtitle: "Upload bank statements for insights",
     icon: <BarChart3 className="h-8 w-8 text-indigo-500" />,
     content: (
       <div className="space-y-4">
-        <p className="text-muted-foreground">
-          Use the analytics dashboard to track your savings rate, debt reduction, and overall financial health over time.
+        <p className="text-sm sm:text-base text-muted-foreground">
+          Upload your bank statements to get detailed analysis of your spending patterns, identify areas for improvement, and track your financial habits over time.
         </p>
         <div className="space-y-3">
-          <div className="flex items-center justify-between p-3 bg-indigo-50 dark:bg-indigo-950/20 rounded-lg">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
-                <TrendingUp className="h-4 w-4 text-indigo-600" />
-              </div>
-              <div>
-                <span className="font-medium text-sm">Savings Rate</span>
-                <p className="text-xs text-muted-foreground">Target: 20% of income</p>
-              </div>
-            </div>
-            <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-              25%
-            </Badge>
-          </div>
-          <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                <PiggyBank className="h-4 w-4 text-green-600" />
-              </div>
-              <div>
-                <span className="font-medium text-sm">Emergency Fund</span>
-                <p className="text-xs text-muted-foreground">3 months of expenses</p>
-              </div>
-            </div>
-            <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-              60%
-            </Badge>
-          </div>
-          <div className="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-                <CreditCard className="h-4 w-4 text-orange-600" />
-              </div>
-              <div>
-                <span className="font-medium text-sm">Debt-to-Income</span>
-                <p className="text-xs text-muted-foreground">Target: Under 40%</p>
-              </div>
-            </div>
-            <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-              15%
-            </Badge>
-          </div>
-        </div>
-        <div className="bg-indigo-50 dark:bg-indigo-950/20 p-3 rounded-lg">
-          <div className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4 text-indigo-600" />
-            <span className="text-sm font-medium text-indigo-800 dark:text-indigo-200">Key Metrics:</span>
-          </div>
-          <p className="text-sm text-indigo-700 dark:text-indigo-300 mt-1">
-            Focus on savings rate, debt reduction, and emergency fund progress. These are your financial health indicators.
-          </p>
-        </div>
-      </div>
-    ),
-    action: {
-      text: "View Analytics",
-      href: "/analysis"
-    }
-  },
-  {
-    title: "Review & Adjust",
-    subtitle: "Continuously improve your plan",
-    icon: <BookOpen className="h-8 w-8 text-teal-500" />,
-    content: (
-      <div className="space-y-4">
-        <p className="text-muted-foreground">
-          Regularly review your budget performance, adjust categories as needed, and celebrate your financial wins.
-        </p>
-        <div className="space-y-3">
-          <div className="flex items-center gap-3 p-3 bg-teal-50 dark:bg-teal-950/20 rounded-lg">
-            <div className="p-2 bg-teal-100 dark:bg-teal-900/30 rounded-lg">
-              <Calendar className="h-4 w-4 text-teal-600" />
+                     <div className="flex items-center gap-3 p-3 bg-indigo-50 dark:bg-indigo-950/20 rounded-lg">
+             <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
+               <BarChart3 className="h-4 w-4 text-indigo-600" />
+             </div>
+             <div className="flex-1">
+               <span className="font-medium text-sm">Upload Statements</span>
+               <p className="text-xs text-muted-foreground">CSV or PDF format supported</p>
+             </div>
+           </div>
+          <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
+            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+              <TrendingUp className="h-4 w-4 text-green-600" />
             </div>
             <div className="flex-1">
-              <span className="font-medium text-sm">Monthly Review</span>
-              <p className="text-xs text-muted-foreground">Check budget vs actual spending</p>
+              <span className="font-medium text-sm">Spending Analysis</span>
+              <p className="text-xs text-muted-foreground">Categorized spending breakdown</p>
             </div>
           </div>
           <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
@@ -363,17 +300,62 @@ const guideSteps: GuideStep[] = [
               <Target className="h-4 w-4 text-blue-600" />
             </div>
             <div className="flex-1">
-              <span className="font-medium text-sm">Goal Check-ins</span>
-              <p className="text-xs text-muted-foreground">Track progress on savings goals</p>
+              <span className="font-medium text-sm">Budget Comparison</span>
+              <p className="text-xs text-muted-foreground">Compare actual vs planned spending</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-indigo-50 dark:bg-indigo-950/20 p-3 rounded-lg">
+          <div className="flex items-center gap-2">
+            <Lightbulb className="h-4 w-4 text-indigo-600" />
+            <span className="text-sm font-medium text-indigo-800 dark:text-indigo-200">Pro Tip:</span>
+          </div>
+          <p className="text-sm text-indigo-700 dark:text-indigo-300 mt-1">
+            Regular statement uploads help you identify spending patterns and make informed budget adjustments.
+          </p>
+        </div>
+      </div>
+    ),
+    action: {
+      text: "Upload Statements",
+      href: "/bank-statements"
+    }
+  },
+  {
+    title: "Review & Track Progress",
+    subtitle: "Monitor your financial journey",
+    icon: <BookOpen className="h-8 w-8 text-teal-500" />,
+    content: (
+      <div className="space-y-4">
+        <p className="text-sm sm:text-base text-muted-foreground">
+          Use the specialized analytics in each section to track your progress and make informed financial decisions.
+        </p>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 p-3 bg-purple-50 dark:bg-purple-950/20 rounded-lg">
+            <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+              <FolderOpen className="h-4 w-4 text-purple-600" />
+            </div>
+            <div className="flex-1">
+              <span className="font-medium text-sm">Budget History</span>
+              <p className="text-xs text-muted-foreground">Review past budgets and spending patterns</p>
             </div>
           </div>
           <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
             <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-              <TrendingUp className="h-4 w-4 text-green-600" />
+              <PiggyBank className="h-4 w-4 text-green-600" />
             </div>
             <div className="flex-1">
-              <span className="font-medium text-sm">Debt Progress</span>
-              <p className="text-xs text-muted-foreground">Monitor debt reduction</p>
+              <span className="font-medium text-sm">Savings Analytics</span>
+              <p className="text-xs text-muted-foreground">Track savings rate and wealth building progress</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
+            <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+              <CreditCard className="h-4 w-4 text-orange-600" />
+            </div>
+            <div className="flex-1">
+              <span className="font-medium text-sm">Debt Analytics</span>
+              <p className="text-xs text-muted-foreground">Monitor debt reduction and repayment efficiency</p>
             </div>
           </div>
         </div>
@@ -383,13 +365,13 @@ const guideSteps: GuideStep[] = [
             <span className="text-sm font-medium text-teal-800 dark:text-teal-200">Success Habits:</span>
           </div>
           <p className="text-sm text-teal-700 dark:text-teal-300 mt-1">
-            Review monthly, adjust quarterly, and celebrate every milestone. Consistency beats perfection!
+            Review monthly, adjust quarterly, and celebrate every milestone. Each section has its own analytics to help you stay on track!
           </p>
         </div>
       </div>
     ),
     action: {
-      text: "View History",
+      text: "View Budget History",
       href: "/previous-budgets"
     }
   }
@@ -424,31 +406,31 @@ export default function WhereDoIStartGuide({ isOpen, onClose }: WhereDoIStartGui
   const progress = ((currentStep + 1) / guideSteps.length) * 100;
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+         <Dialog open={isOpen} onOpenChange={handleClose}>
+       <DialogContent className="max-w-2xl w-[95vw] max-h-[95vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <BookOpen className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <div className="text-lg font-semibold">Where Do I Start?</div>
-              <div className="text-sm text-muted-foreground">
-                Step {currentStep + 1} of {guideSteps.length}
-              </div>
-            </div>
-          </DialogTitle>
+                     <DialogTitle className="flex items-center gap-2 sm:gap-3">
+             <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg">
+               <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+             </div>
+             <div>
+               <div className="text-base sm:text-lg font-semibold">Where Do I Start?</div>
+               <div className="text-xs sm:text-sm text-muted-foreground">
+                 Step {currentStep + 1} of {guideSteps.length}
+               </div>
+             </div>
+           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Progress Bar */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Progress</span>
-              <span className="font-medium">{Math.round(progress)}%</span>
-            </div>
-            <Progress value={progress} className="h-2" />
-          </div>
+                 <div className="space-y-4 sm:space-y-6">
+           {/* Progress Bar */}
+           <div className="space-y-2">
+             <div className="flex justify-between text-xs sm:text-sm">
+               <span className="text-muted-foreground">Progress</span>
+               <span className="font-medium">{Math.round(progress)}%</span>
+             </div>
+             <Progress value={progress} className="h-2" />
+           </div>
 
           {/* Step Content */}
           <AnimatePresence mode="wait">
@@ -460,66 +442,67 @@ export default function WhereDoIStartGuide({ isOpen, onClose }: WhereDoIStartGui
               transition={{ duration: 0.3 }}
               className="space-y-4"
             >
-              {/* Step Header */}
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-primary/10 rounded-xl">
-                  {currentStepData.icon}
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-xl font-semibold mb-1">{currentStepData.title}</h3>
-                  <p className="text-muted-foreground">{currentStepData.subtitle}</p>
-                </div>
-              </div>
+                             {/* Step Header */}
+               <div className="flex items-start gap-3 sm:gap-4">
+                 <div className="p-2 sm:p-3 bg-primary/10 rounded-xl">
+                   {currentStepData.icon}
+                 </div>
+                 <div className="flex-1">
+                   <h3 className="text-lg sm:text-xl font-semibold mb-1">{currentStepData.title}</h3>
+                   <p className="text-sm sm:text-base text-muted-foreground">{currentStepData.subtitle}</p>
+                 </div>
+               </div>
 
               <Separator />
 
-              {/* Step Content */}
-              <div className="min-h-[300px]">
-                {currentStepData.content}
-              </div>
+                             {/* Step Content */}
+               <div className="min-h-[250px] sm:min-h-[300px]">
+                 {currentStepData.content}
+               </div>
 
-              {/* Action Button */}
-              {currentStepData.action && (
-                <div className="pt-4">
-                  <Button 
-                    className="w-full" 
-                    onClick={() => {
-                      window.open(currentStepData.action!.href, '_blank');
-                    }}
-                  >
-                    {currentStepData.action.text}
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </div>
-              )}
+                             {/* Action Button */}
+               {currentStepData.action && (
+                 <div className="pt-4">
+                   <Button 
+                     className="w-full" 
+                     onClick={() => {
+                       window.location.href = currentStepData.action!.href;
+                     }}
+                   >
+                     {currentStepData.action.text}
+                     <ArrowRight className="h-4 w-4 ml-2" />
+                   </Button>
+                 </div>
+               )}
             </motion.div>
           </AnimatePresence>
 
-          {/* Navigation */}
-          <div className="flex items-center justify-between pt-4 border-t">
-            <Button
-              variant="outline"
-              onClick={handlePrevious}
-              disabled={currentStep === 0}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Previous
-            </Button>
+                     {/* Navigation */}
+           <div className="flex items-center justify-between pt-4 border-t">
+             <Button
+               variant="outline"
+               onClick={handlePrevious}
+               disabled={currentStep === 0}
+               className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm"
+               size="sm"
+             >
+               <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4" />
+               Previous
+             </Button>
 
-            <div className="flex items-center gap-2">
-              {currentStep < guideSteps.length - 1 ? (
-                <Button onClick={handleNext} className="flex items-center gap-2">
-                  Next
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              ) : (
-                <Button onClick={handleClose} className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4" />
-                  Get Started
-                </Button>
-              )}
-            </div>
+                         <div className="flex items-center gap-2">
+               {currentStep < guideSteps.length - 1 ? (
+                 <Button onClick={handleNext} className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm" size="sm">
+                   Next
+                   <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4" />
+                 </Button>
+               ) : (
+                 <Button onClick={handleClose} className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm" size="sm">
+                   <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+                   Get Started
+                 </Button>
+               )}
+             </div>
           </div>
         </div>
       </DialogContent>

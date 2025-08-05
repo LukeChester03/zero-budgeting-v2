@@ -81,7 +81,7 @@ interface GoalFormData {
 }
 
 export default function SavingsDashboard() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const budgets = useFirebaseStore((s) => s.budgets);
   const goals = useFirebaseStore((s) => s.goals);
   const income = useFirebaseStore((s) => s.income);
@@ -311,6 +311,39 @@ export default function SavingsDashboard() {
   };
 
   // Check if user is authenticated
+  if (isLoading) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20"
+      >
+        <div className="container mx-auto px-6 py-24">
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="max-w-2xl mx-auto text-center"
+          >
+            <motion.div variants={itemVariants}>
+              <Card className="bg-background/80 backdrop-blur-sm border-primary/20">
+                <CardContent className="p-12">
+                  <div className="text-center space-y-6">
+                    <div className="text-6xl mb-4">⏳</div>
+                    <h2 className="text-2xl font-bold">Loading...</h2>
+                    <p className="text-muted-foreground">
+                      Please wait while we load your savings dashboard.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </motion.div>
+        </div>
+      </motion.div>
+    );
+  }
+
   if (!user) {
     return (
       <motion.div
