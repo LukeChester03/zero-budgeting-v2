@@ -1,40 +1,38 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  PiggyBank,
-  TrendingUp,
-  Target,
-  BarChart3,
-  CheckCircle,
-  Plus,
-  Calculator,
-  Trash2,
-  Umbrella,
-  Car,
-  Home,
-  LifeBuoy,
-  AlertTriangle,
-  DollarSign,
-  Calendar,
-  PieChart
-} from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { useFirebaseStore } from "@/lib/store-firebase";
+import { Debt } from "@/lib/store-firebase";
 import { cn } from "@/lib/utils";
-import { useFirebaseStore, Debt } from "@/lib/store-firebase";
+import { 
+  Plus, 
+  Trash2, 
+  CheckCircle, 
+  PiggyBank, 
+  Target, 
+  BarChart3, 
+  DollarSign, 
+  AlertTriangle, 
+  Calculator, 
+  PieChart,
+  Umbrella,
+  Home,
+  Car,
+  LifeBuoy
+} from "lucide-react";
+import PaidOffDebtModal from "@/app/components/PaidOffDebtModal";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import PaidOffDebtModal from "@/app/components/PaidOffDebtModal";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, BarChart, Bar } from "recharts";
 
 // Debt type icons and labels
 const DEBT_TYPES = {
@@ -52,9 +50,6 @@ const PRIORITY_COLORS = {
   medium: "bg-yellow-100 text-yellow-800 border-yellow-200",
   low: "bg-green-100 text-green-800 border-green-200",
 } as const;
-
-// Chart colors
-const CHART_COLORS = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#06B6D4'];
 
 // Animation variants
 const containerVariants = {
@@ -98,7 +93,6 @@ export default function LoansPage() {
     deleteDebt, 
     getRepaidAmountForDebt,
     income,
-    isEarning,
     budgets
   } = useFirebaseStore();
 
@@ -229,7 +223,7 @@ export default function LoansPage() {
     ).sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
 
     if (pastBudgets.length === 0) {
-      return debts.map((debt, index) => ({
+      return debts.map((debt) => ({
         name: debt.name,
         remainingDebt: debt.totalAmount,
         month: new Date().toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })
@@ -237,13 +231,13 @@ export default function LoansPage() {
     }
 
     // Calculate debt reduction for each past budget
-    return pastBudgets.map((budget, index) => {
+    return pastBudgets.map((budget) => {
       const debtAllocations = budget.allocations.filter(allocation => 
         allocation.category === 'debt' && allocation.amount > 0
       );
       
       const totalDebtReduction = debtAllocations.reduce((sum, allocation) => sum + allocation.amount, 0);
-      const remainingDebt = Math.max(0, debtStats.totalDebt - (totalDebtReduction * (index + 1)));
+      const remainingDebt = Math.max(0, debtStats.totalDebt - (totalDebtReduction * (pastBudgets.indexOf(budget) + 1)));
       
       return {
         name: new Date(budget.month).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }),
@@ -257,7 +251,7 @@ export default function LoansPage() {
   // Chart data for overview section - based on proven financial health metrics
   const chartData = useMemo(() => {
     // 2. Debt Priority Matrix (Bar Chart) - Shows which debts to pay off first
-    const debtPriorityMatrix = debts.map((debt, index) => ({
+    const debtPriorityMatrix = debts.map((debt) => ({
       name: debt.name,
       priorityScore: debt.interestRate * debt.totalAmount / 10000, // Priority score
       interestRate: debt.interestRate,
@@ -266,7 +260,7 @@ export default function LoansPage() {
     })).sort((a, b) => b.priorityScore - a.priorityScore);
 
     // 3. Interest Cost Analysis (Bar Chart) - Shows interest costs by debt
-    const interestCostAnalysis = debts.map((debt, index) => {
+    const interestCostAnalysis = debts.map((debt) => {
       const totalInterestCost = (debt.interestRate / 100) * debt.totalAmount * (debt.months / 12);
       const monthlyInterestCost = totalInterestCost / debt.months;
       
@@ -317,7 +311,7 @@ export default function LoansPage() {
       repaymentProgress: interestCostAnalysis,
       financialHealthMetrics
     };
-  }, [debts, debtsWithRepaymentData, debtToIncomeRatio, debtStats, income, debtReductionTimeline]);
+  }, [debts, debtToIncomeRatio, debtStats, income, debtReductionTimeline]);
 
   const validateForm = (): boolean => {
     const errors: Partial<DebtFormData> = {};
@@ -676,7 +670,7 @@ export default function LoansPage() {
                     <CardContent>
                       {chartData.financialHealthMetrics.length > 0 ? (
                         <div className="space-y-3 sm:space-y-4">
-                          {chartData.financialHealthMetrics.map((metric, index) => (
+                          {chartData.financialHealthMetrics.map((metric) => (
                             <div key={metric.name} className="space-y-2">
                               <div className="flex justify-between items-center">
                                 <span className="text-xs sm:text-sm font-medium">{metric.name}</span>

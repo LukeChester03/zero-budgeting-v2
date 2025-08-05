@@ -199,7 +199,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // More detailed error handling
       if (error instanceof Error) {
-        const errorCode = (error as any).code;
+        const errorCode = (error as { code?: string }).code;
         console.log('Google sign-in error code:', errorCode);
         
         if (errorCode === 'auth/popup-closed-by-user') {
