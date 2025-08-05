@@ -12,9 +12,8 @@ export interface Budget {
   month: string;
   income: number;
   allocations: Allocation[];
-  overBudgetReason?: string;
-  createdAt?: any;
-  updatedAt?: any;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Allocation {
@@ -36,8 +35,8 @@ export interface Debt {
   monthlyRepayment: number;
   endDate?: string; // Optional end date for debt repayment
   isActive: boolean;
-  createdAt?: any;
-  updatedAt?: any;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Goal {
@@ -51,8 +50,8 @@ export interface Goal {
   targetYear: number;
   monthlyContribution: number;
   isActive: boolean;
-  createdAt?: any;
-  updatedAt?: any;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface BudgetTemplate {
@@ -62,8 +61,8 @@ export interface BudgetTemplate {
   categories: string[];
   sections?: { title: string; categories: string[] }[];
   isDefault: boolean;
-  createdAt?: any;
-  updatedAt?: any;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 interface FirebaseStore {
@@ -390,25 +389,22 @@ export const useFirebaseStore = create<FirebaseStore>()(
         return debts.reduce((total, debt) => total + debt.monthlyRepayment, 0);
       },
 
-      getRepaidAmountForDebt: (debtName) => {
-        const { budgets, debts } = get();
-        const debt = debts.find(d => d.name === debtName);
-        if (!debt) return 0;
-
-        // Calculate repaid amount based on budget allocations
-        const totalRepaid = budgets.reduce((total, budget) => {
-          const debtAllocation = budget.allocations.find(alloc => alloc.category === debtName);
-          return total + (debtAllocation?.amount || 0);
+      // Fix the 'any' type
+      getRepaidAmountForDebt: (debtName: string): number => {
+        const { budgets } = get();
+        return budgets.reduce((total, budget) => {
+          const debtAllocations = budget.allocations.filter(
+            allocation => allocation.category === debtName
+          );
+          return total + debtAllocations.reduce((sum, alloc) => sum + alloc.amount, 0);
         }, 0);
-
-        return Math.min(totalRepaid, debt.totalAmount);
       },
 
-      getBudgetTotal: (allocations) => {
+      getBudgetTotal: (allocations: Allocation[]): number => {
         return allocations.reduce((total, allocation) => total + allocation.amount, 0);
       },
 
-      getBudgetRemaining: (allocations, income) => {
+      getBudgetRemaining: (allocations: Allocation[], income: number): number => {
         const total = get().getBudgetTotal(allocations);
         return income - total;
       },
@@ -442,7 +438,7 @@ export const useFirebaseStore = create<FirebaseStore>()(
                 [section]: newCategories
               }
             });
-          } catch (error) {
+          } catch {
             // If document doesn't exist, create it
             await firestoreUtils.create(COLLECTIONS.CUSTOM_CATEGORIES, {
               userId: user.uid,
@@ -543,7 +539,7 @@ export const useFirebaseStore = create<FirebaseStore>()(
         if (!user) throw new Error("User not authenticated");
         
         const activeGoals = goals.filter(goal => goal.isActive);
-        let updatedAllocations = [...budget.allocations];
+        const updatedAllocations = [...budget.allocations];
         
         // Add goal contributions to allocations
         activeGoals.forEach(goal => {
@@ -576,7 +572,7 @@ export const useFirebaseStore = create<FirebaseStore>()(
         if (!user) throw new Error("User not authenticated");
         
         const activeDebts = debts.filter(debt => debt.isActive);
-        let updatedAllocations = [...budget.allocations];
+        const updatedAllocations = [...budget.allocations];
         
         // Add debt payments to allocations
         activeDebts.forEach(debt => {

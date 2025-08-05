@@ -28,7 +28,7 @@ export default function LoginForm() {
       } else {
         await signIn(email, password);
       }
-    } catch (error: any) {
+    } catch {
       // Error is already handled by the auth context
     } finally {
       setIsLoading(false);
@@ -41,7 +41,7 @@ export default function LoginForm() {
     
     try {
       await signInWithGoogle();
-    } catch (error: any) {
+    } catch {
       // Error is already handled by the auth context
     } finally {
       setIsLoading(false);

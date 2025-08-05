@@ -44,9 +44,9 @@ export default function BudgetAnalysisPage() {
       const parsed: Analysis = JSON.parse(data.analysis);
 
       setAnalysis(parsed);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setError("Error generating analysis");
-      console.log(e.error);
+      console.log(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }

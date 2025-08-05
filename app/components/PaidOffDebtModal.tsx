@@ -4,17 +4,13 @@ import React from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { 
   CheckCircle, 
   TrendingUp, 
-  PiggyBank, 
   Target, 
   Shield, 
   Zap,
   Lightbulb,
-  DollarSign,
-  Calendar,
   Calculator
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -83,7 +79,7 @@ export default function PaidOffDebtModal({
                 Congratulations! 🎉
               </DialogTitle>
               <DialogDescription className="text-lg">
-                You've successfully paid off <strong>{debtName}</strong>!
+                You&apos;ve successfully paid off <strong>{debtName}</strong>!
               </DialogDescription>
             </div>
           </div>
@@ -168,7 +164,7 @@ export default function PaidOffDebtModal({
                 Stay Debt-Free!
               </h3>
               <div className="space-y-2 text-sm text-yellow-700">
-                <p>• Avoid taking on new debt - you've worked hard to get here!</p>
+                <p>• Avoid taking on new debt - you&apos;ve worked hard to get here!</p>
                 <p>• Use this freed-up money to build wealth, not create new obligations</p>
                 <p>• Remember: every new debt delays your financial freedom</p>
                 <p>• Focus on saving and investing instead of borrowing</p>
@@ -178,7 +174,7 @@ export default function PaidOffDebtModal({
 
           <div className="flex justify-end">
             <Button onClick={onClose} className="bg-green-600 hover:bg-green-700">
-              Got it! I'll stay debt-free
+              Got it! I&apos;ll stay debt-free
             </Button>
           </div>
         </div>

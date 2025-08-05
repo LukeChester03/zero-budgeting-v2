@@ -7,11 +7,11 @@ import {
   updateDoc, 
   deleteDoc, 
   query, 
-  where, 
-  orderBy,
+  where,
   onSnapshot,
+  serverTimestamp,
   writeBatch,
-  serverTimestamp 
+  WhereFilterOp
 } from "firebase/firestore";
 import { db } from "./firebase";
 
@@ -55,7 +55,7 @@ export const firestoreUtils = {
   },
 
   // Read documents with query
-  async getWhere<T>(collectionName: string, field: string, operator: any, value: any): Promise<T[]> {
+  async getWhere<T>(collectionName: string, field: string, operator: WhereFilterOp, value: unknown): Promise<T[]> {
     const q = query(collection(db, collectionName), where(field, operator, value));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as T);
@@ -127,7 +127,7 @@ export const firestoreUtils = {
     type: 'create' | 'update' | 'delete';
     collection: string;
     id?: string;
-    data?: any;
+    data?: Record<string, unknown>;
   }>): Promise<void> {
     const batch = writeBatch(db);
     

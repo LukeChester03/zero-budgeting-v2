@@ -8,17 +8,12 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Calendar, PiggyBank, Plus } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { PiggyBank, Plus, Calendar } from "lucide-react";
 
 // — Motion variants —
 const containerVariants: Variants = {
   hidden: {},
-  visible: {
-    when: "beforeChildren",
-    staggerChildren: 0.1,
-  },
+  visible: {},
 };
 
 const listVariants: Variants = {
@@ -74,7 +69,7 @@ export default function BudgetList() {
               </h2>
 
               <p className="text-muted-foreground text-lg max-w-lg">
-                It looks like you haven't created any budgets yet. Let's start planning your first budget
+                It looks like you haven&apos;t created any budgets yet. Let&apos;s start planning your first budget
                 to take control of your finances.
               </p>
             </div>

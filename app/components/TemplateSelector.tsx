@@ -9,11 +9,10 @@ import { Bookmark, Download } from "lucide-react";
 
 interface TemplateSelectorProps {
   onTemplateSelect: (categories: string[]) => void;
-  currentAllocations: { category: string; amount: number }[];
 }
 
-export default function TemplateSelector({ onTemplateSelect, currentAllocations }: TemplateSelectorProps) {
-  const { budgetTemplates, getBudgetTemplates } = useFirebaseStore();
+export default function TemplateSelector({ onTemplateSelect }: TemplateSelectorProps) {
+  const { budgetTemplates } = useFirebaseStore();
   const { toast } = useToast();
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
 

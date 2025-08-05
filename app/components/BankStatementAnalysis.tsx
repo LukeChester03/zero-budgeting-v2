@@ -1,14 +1,12 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
-import { TrendingUp, TrendingDown, BarChart3, PieChart, Calendar, AlertTriangle, PoundSterling, Target } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, BarChart, Bar } from "recharts";
+import { TrendingUp, TrendingDown, BarChart3, PieChart, AlertTriangle, PoundSterling, Target } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell } from "recharts";
 import { useBankStatementStore } from "@/app/lib/bankStatementStore";
 import { budgetTemplate } from "@/app/utils/template";
 import { useBudgetStore } from "@/app/lib/store";
@@ -42,7 +40,7 @@ export default function BankStatementAnalysis() {
       const spending = getMonthlySpending(year, month);
       
       data.push({
-        month: date.toLocaleDateString("en-GB", { month: "short", year: "2-digit" }),
+        monthLabel: date.toLocaleDateString("en-GB", { month: "short", year: "2-digit" }),
         spending,
         year,
         month,
@@ -267,7 +265,7 @@ export default function BankStatementAnalysis() {
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={spendingData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
+                <XAxis dataKey="monthLabel" />
                 <YAxis />
                 <Tooltip 
                   formatter={(value: number) => [`£${value.toFixed(2)}`, "Spending"]}
@@ -380,7 +378,7 @@ export default function BankStatementAnalysis() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-yellow-700 mb-4">
-              You have {uncategorizedTransactions.length} transactions that haven't been categorized yet. 
+              You have {uncategorizedTransactions.length} transactions that haven&apos;t been categorized yet. 
               Review them to improve your spending analysis.
             </p>
             <div className="space-y-2 max-h-40 overflow-y-auto">

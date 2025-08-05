@@ -6,13 +6,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Trash2, Plus, Save, TrendingUp } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface DebtInput {
   id: string;
@@ -31,13 +28,13 @@ interface DebtRepayment {
 
 const rowVariants = {
   hidden: { opacity: 0, y: -10 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.25, ease: "easeOut" } },
-  exit: { opacity: 0, y: 10, transition: { duration: 0.25, ease: "easeIn" } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.25 } },
+  exit: { opacity: 0, y: 10, transition: { duration: 0.25 } },
 };
 
 const sectionVariants = {
   hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
 };
 
 export default function DebtsForm() {
@@ -45,7 +42,7 @@ export default function DebtsForm() {
   const budgets = useFirebaseStore((s) => s.budgets);
   const addDebt = useFirebaseStore((s) => s.addDebt);
   const updateDebt = useFirebaseStore((s) => s.updateDebt);
-  const removeDebt = useFirebaseStore((s) => s.removeDebt);
+  const deleteDebt = useFirebaseStore((s) => s.deleteDebt);
   const income = useFirebaseStore((s) => s.income);
   const getRepaidAmountForDebt = useFirebaseStore((s) => s.getRepaidAmountForDebt);
 
@@ -122,6 +119,14 @@ export default function DebtsForm() {
             name: name.trim(),
             totalAmount: amtNum,
             months: monthsNum,
+            interestRate: 0,
+            startDate: new Date().toISOString().split('T')[0],
+            debtType: "other",
+            priority: "medium",
+            monthlyRepayment: amtNum / monthsNum,
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
           });
         }
       }
@@ -129,7 +134,7 @@ export default function DebtsForm() {
   };
 
   const handleRemoveDebt = (id: string): void => {
-    removeDebt(id);
+    deleteDebt(id);
     setLocalDebts((prev) => prev.filter((d) => d.id !== id));
   };
 
@@ -387,7 +392,7 @@ export default function DebtsForm() {
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ type: "spring", stiffness: 200, damping: 20 }}
                   >
-                    🎉 Congratulations! You're debt-free! 🎉
+                    🎉 Congratulations! You&apos;re debt-free! 🎉
                   </motion.div>
                 )}
               </CardContent>

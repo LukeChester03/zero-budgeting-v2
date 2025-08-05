@@ -1,16 +1,14 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Separator } from "@/components/ui/separator";
-import { Upload, FileText, AlertCircle, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Upload, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import { useBankStatementStore, BankStatement, Transaction } from "@/app/lib/bankStatementStore";
-import { budgetTemplate } from "@/app/utils/template";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 interface ParsedTransaction {
@@ -36,7 +34,6 @@ export default function BankStatementUpload() {
   } | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const spendingCategories = budgetTemplate.flatMap(group => group.categories);
 
   const autoCategorizeTransaction = (description: string): string => {
     const suggestions = getCategorySuggestions(description);
@@ -112,7 +109,7 @@ export default function BankStatementUpload() {
             date = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
           }
         }
-      } catch (e) {
+      } catch {
         console.warn('Could not parse date:', dateStr);
         continue;
       }
@@ -158,7 +155,7 @@ export default function BankStatementUpload() {
       }
 
       // Auto-categorize transactions
-      const categorizedTransactions: Transaction[] = transactions.map((transaction, index) => ({
+      const categorizedTransactions: Transaction[] = transactions.map((transaction) => ({
         id: crypto.randomUUID(),
         date: transaction.date,
         description: transaction.description,

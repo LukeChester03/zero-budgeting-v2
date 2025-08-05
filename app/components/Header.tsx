@@ -5,8 +5,7 @@ import { motion, Variants } from "framer-motion";
 import { NavItem } from "@/app/components/NavItem";
 import { FaMoneyBillWave } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
-import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger, navigationMenuTriggerStyle } from "@/components/ui/navigation-menu";
-import { Card, CardContent } from "@/components/ui/card";
+import { NavigationMenu, NavigationMenuItem, NavigationMenuLink, NavigationMenuList } from "@/components/ui/navigation-menu";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth-context";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -46,7 +45,7 @@ export default function Header() {
     }
   };
 
-  const getUserInitials = (user: any) => {
+  const getUserInitials = (user: { displayName?: string | null; email?: string | null }) => {
     if (user.displayName) {
       return user.displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase();
     }
@@ -192,28 +191,23 @@ export default function Header() {
                 {/* Navigation Items */}
                 <nav className="space-y-1">
                   {navItems.map(({ label, path }) => (
-                    <NavItem
-                      key={path}
-                      href={path}
-                      className="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-muted/50 transition-colors"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      {label}
-                    </NavItem>
+                    <div key={path} onClick={() => setIsMobileMenuOpen(false)}>
+                      <NavItem href={path}>
+                        {label}
+                      </NavItem>
+                    </div>
                   ))}
                 </nav>
 
                 {/* Mobile User Actions */}
                 <div className="pt-3 border-t border-border">
                   <div className="space-y-1">
-                    <NavItem
-                      href="/profile"
-                      className="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-muted/50 transition-colors"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <User className="mr-3 h-4 w-4" />
-                      Profile
-                    </NavItem>
+                    <div onClick={() => setIsMobileMenuOpen(false)}>
+                      <NavItem href="/profile">
+                        <User className="mr-3 h-4 w-4" />
+                        Profile
+                      </NavItem>
+                    </div>
                     <Button
                       variant="ghost"
                       className="w-full justify-start px-3 py-2 h-auto"

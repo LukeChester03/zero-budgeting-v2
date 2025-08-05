@@ -8,32 +8,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
+
 import ClientOnly from "@/app/components/ClientOnly";
 import MonthlyIncomeInput from "@/app/components/MonthlyIncomeInput";
 import AuthModal from "@/app/components/AuthModal";
 import WhereDoIStartGuide from "@/app/components/WhereDoIStartGuide";
 import { 
-  Plus, 
-  PiggyBank, 
-  FolderOpen, 
-  CreditCard, 
   TrendingUp, 
   Target, 
-  Calendar,
-  DollarSign,
-  AlertCircle,
-  CheckCircle,
-  ArrowRight,
+  PiggyBank, 
+  CreditCard, 
+
   Sparkles,
   Shield,
   Zap,
-  BarChart3,
-  Users,
   Award,
-  Clock,
+  CheckCircle,
+  Lightbulb,
+  DollarSign,
+  Plus,
+  ArrowRight,
   BookOpen,
-  Lightbulb
+  FolderOpen,
+  Calendar
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -52,8 +49,6 @@ export default function Home() {
   const getTotalSaved = useFirebaseStore((s) => s.getTotalSaved);
   const getTotalMonthlyDebtRepayments = useFirebaseStore((s) => s.getTotalMonthlyDebtRepayments);
   const getSavedAmountForGoal = useFirebaseStore((s) => s.getSavedAmountForGoal);
-  const getRepaidAmountForDebt = useFirebaseStore((s) => s.getRepaidAmountForDebt);
-
 
 
   // Helper function to handle floating-point precision when comparing to zero
@@ -75,7 +70,6 @@ export default function Home() {
   const handleViewSavings = () => router.push("/savings");
   const handleViewBudgets = () => router.push("/previous-budgets");
   const handleViewDebts = () => router.push("/loans");
-  const handleViewAnalysis = () => router.push("/analysis");
   const handleSignIn = () => setIsAuthModalOpen(true);
 
   const containerVariants = {

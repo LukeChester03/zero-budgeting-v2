@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -19,9 +19,6 @@ import {
   TrendingUp, 
   Target, 
   Calendar,
-  DollarSign,
-  ArrowUpRight,
-  ArrowDownRight,
   Clock,
   Sparkles,
   BarChart3,
@@ -29,19 +26,15 @@ import {
   AlertCircle,
   CheckCircle,
   Plus,
-  Eye,
   Calculator,
   Trash2,
-  Edit,
   Umbrella,
   Car,
   Home,
   LifeBuoy
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-
+import { PieChart } from "recharts";
 // Animation variants
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -88,7 +81,7 @@ export default function SavingsDashboard() {
   const getTotalSaved = useFirebaseStore((s) => s.getTotalSaved);
   const getSavedAmountForGoal = useFirebaseStore((s) => s.getSavedAmountForGoal);
   const addGoal = useFirebaseStore((s) => s.addGoal);
-  const updateGoal = useFirebaseStore((s) => s.updateGoal);
+
   const deleteGoal = useFirebaseStore((s) => s.deleteGoal);
 
   // Goal form state
@@ -231,19 +224,7 @@ export default function SavingsDashboard() {
       savingsOverTime,
       categoryChartData
     };
-  }, [budgets, goals, income, getTotalSaved, getSavedAmountForGoal]);
-
-  const getTrendIcon = (trend: number) => {
-    if (trend > 0) return <ArrowUpRight className="h-4 w-4 text-green-500" />;
-    if (trend < 0) return <ArrowDownRight className="h-4 w-4 text-red-500" />;
-    return <TrendingUp className="h-4 w-4 text-muted-foreground" />;
-  };
-
-  const getTrendColor = (trend: number) => {
-    if (trend > 0) return "text-green-600";
-    if (trend < 0) return "text-red-600";
-    return "text-muted-foreground";
-  };
+  }, [budgets, goals, getTotalSaved, getSavedAmountForGoal]);
 
   // Goal form handlers
   const validateGoalForm = (): boolean => {
@@ -581,7 +562,7 @@ export default function SavingsDashboard() {
                     Savings Velocity
                   </CardTitle>
                   <CardDescription>
-                    How quickly you're building wealth
+                    How quickly you&apos;re building wealth
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -738,7 +719,7 @@ export default function SavingsDashboard() {
                     Savings Efficiency Score
                   </CardTitle>
                   <CardDescription>
-                    How well you're optimizing your savings based on your average income
+                                          How well you&apos;re optimizing your savings based on your average income
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -976,7 +957,7 @@ export default function SavingsDashboard() {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Delete Goal</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Are you sure you want to delete "{goal.title}"? This action cannot be undone.
+                                Are you sure you want to delete &quot;{goal.title}&quot;? This action cannot be undone.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -1084,7 +1065,7 @@ export default function SavingsDashboard() {
                    {income > 0 ? (
                      <>
                        <p className="text-sm text-muted-foreground mb-2">
-                         You're saving {savingsData.savingsRate.toFixed(1)}% of your income
+                         You&apos;re saving {savingsData.savingsRate.toFixed(1)}% of your income
                        </p>
                        {savingsData.savingsRate < 20 ? (
                          <p className="text-xs text-orange-600">

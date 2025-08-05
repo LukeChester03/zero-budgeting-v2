@@ -2,17 +2,17 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Separator } from "@/components/ui/separator";
-import { Receipt, Search, Filter, Trash2, Eye, Calendar, Building2, PoundSterling } from "lucide-react";
+
+import { Receipt, Search, Trash2, Calendar, Building2, PoundSterling } from "lucide-react";
 import { useInvoiceStore, Invoice } from "@/app/lib/invoiceStore";
 import { budgetTemplate } from "@/app/utils/template";
-import { cn } from "@/lib/utils";
+
 
 export default function InvoiceList() {
   const invoices = useInvoiceStore((state) => state.invoices);

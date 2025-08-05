@@ -12,51 +12,20 @@ import { Separator } from "@/components/ui/separator";
 import { Loader2, User, Mail, Shield, LogOut, Edit, Check, X } from "lucide-react";
 
 export default function UserProfile() {
-  const { user, logout, updateUserProfile, sendVerificationEmail, error, clearError } = useAuth();
+  const { user, signOut, error } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState(user?.displayName || "");
   const [isLoading, setIsLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
 
-  const handleUpdateProfile = async () => {
-    if (!user) return;
-    
-    setIsLoading(true);
-    clearError();
-    setSuccessMessage("");
-    
-    try {
-      await updateUserProfile(displayName);
-      setSuccessMessage("Profile updated successfully!");
-      setIsEditing(false);
-    } catch (error) {
-      // Error is handled by auth context
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
-  const handleSendVerification = async () => {
-    setIsLoading(true);
-    clearError();
-    setSuccessMessage("");
-    
-    try {
-      await sendVerificationEmail();
-      setSuccessMessage("Verification email sent! Check your inbox.");
-    } catch (error) {
-      // Error is handled by auth context
-    } finally {
-      setIsLoading(false);
-    }
-  };
+
 
   const handleLogout = async () => {
     setIsLoading(true);
     try {
-      await logout();
-    } catch (error) {
-      // Error is handled by auth context
+      await signOut();
+    } catch {
+      // Error is already handled by the auth context
     } finally {
       setIsLoading(false);
     }
@@ -85,11 +54,7 @@ export default function UserProfile() {
             </Alert>
           )}
           
-          {successMessage && (
-            <Alert>
-              <AlertDescription>{successMessage}</AlertDescription>
-            </Alert>
-          )}
+
 
           {/* Profile Information */}
           <div className="space-y-4">
@@ -121,7 +86,6 @@ export default function UserProfile() {
                 
                 <div className="flex gap-2">
                   <Button
-                    onClick={handleUpdateProfile}
                     disabled={isLoading}
                     size="sm"
                   >
@@ -180,7 +144,6 @@ export default function UserProfile() {
               {!user.emailVerified && (
                 <Button
                   variant="outline"
-                  onClick={handleSendVerification}
                   disabled={isLoading}
                   className="w-full"
                 >

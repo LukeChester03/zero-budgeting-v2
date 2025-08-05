@@ -64,7 +64,7 @@ export const userService = {
 
       // Filter out undefined values
       const cleanUserProfile = Object.fromEntries(
-        Object.entries(userProfile).filter(([_, value]) => value !== undefined)
+        Object.entries(userProfile).filter(([, value]) => value !== undefined)
       );
 
       console.log('User profile data to create:', cleanUserProfile);
@@ -122,7 +122,7 @@ export const userService = {
         
         // Filter out undefined values from updates
         const cleanUpdates = Object.fromEntries(
-          Object.entries(updates).filter(([_, value]) => value !== undefined)
+          Object.entries(updates).filter(([, value]) => value !== undefined)
         );
         
         console.log('Clean updates to apply:', cleanUpdates);
@@ -286,12 +286,13 @@ export const userService = {
         console.log('Default budget template created successfully for user:', userId);
       } else {
         // Check if we need to migrate existing templates
-        const defaultTemplate = existingTemplates.find(t => (t as any).isDefault);
+        const defaultTemplate = existingTemplates.find(t => (t as Record<string, unknown>).isDefault);
         if (defaultTemplate && (
-          !(defaultTemplate as any).categories || 
-          (defaultTemplate as any).categories.length < 20 ||
-          !(defaultTemplate as any).categories.includes("Safety Net") ||
-          !(defaultTemplate as any).categories.includes("Foundation")
+          !(defaultTemplate as Record<string, unknown>).categories || 
+          !Array.isArray((defaultTemplate as Record<string, unknown>).categories) ||
+          ((defaultTemplate as Record<string, unknown>).categories as unknown[]).length < 20 ||
+          !((defaultTemplate as Record<string, unknown>).categories as unknown[]).includes("Safety Net") ||
+          !((defaultTemplate as Record<string, unknown>).categories as unknown[]).includes("Foundation")
         )) {
           // Migrate to new structure
           console.log('Migrating existing template to new structure for user:', userId);
@@ -312,7 +313,7 @@ export const userService = {
             "Entertainment", "Clothing", "Healthcare", "Gifts", "Holidays"
           ];
           
-          await firestoreUtils.update(COLLECTIONS.BUDGET_TEMPLATES, (defaultTemplate as any).id, {
+          await firestoreUtils.update(COLLECTIONS.BUDGET_TEMPLATES, (defaultTemplate as Record<string, unknown>).id as string, {
             categories: defaultCategories,
             sections: [
               {

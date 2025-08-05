@@ -1,14 +1,11 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
-import { TrendingUp, TrendingDown, BarChart3, PieChart, Calendar, AlertTriangle } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, BarChart, Bar } from "recharts";
+import { TrendingUp, TrendingDown, BarChart3, PieChart, AlertTriangle, PoundSterling } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell } from "recharts";
 import { useInvoiceStore } from "@/app/lib/invoiceStore";
 import { budgetTemplate } from "@/app/utils/template";
 import { useBudgetStore } from "@/app/lib/store";
@@ -19,7 +16,7 @@ export default function SpendingAnalysis() {
   const invoices = useInvoiceStore((state) => state.invoices);
   const getTotalSpendingByCategory = useInvoiceStore((state) => state.getTotalSpendingByCategory);
   const getMonthlySpending = useInvoiceStore((state) => state.getMonthlySpending);
-  const budget = useBudgetStore((state) => state.budget);
+  const budgets = useBudgetStore((state) => state.budgets);
   
   const [timeRange, setTimeRange] = useState("3-months");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -39,7 +36,7 @@ export default function SpendingAnalysis() {
       const spending = getMonthlySpending(year, month);
       
       data.push({
-        month: date.toLocaleDateString("en-GB", { month: "short", year: "2-digit" }),
+        monthLabel: date.toLocaleDateString("en-GB", { month: "short", year: "2-digit" }),
         spending,
         year,
         month,
@@ -64,9 +61,12 @@ export default function SpendingAnalysis() {
 
   // Calculate budget vs actual spending
   const budgetComparison = useMemo(() => {
-    const totalBudget = budget.reduce((sum, group) => 
-      sum + group.categories.reduce((groupSum, category) => 
-        groupSum + (category.budget || 0), 0), 0);
+    // Get current month's budget
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const currentBudget = budgets.find(b => b.month === currentMonth);
+    
+    const totalBudget = currentBudget ? currentBudget.allocations.reduce((sum, allocation) => 
+      sum + allocation.amount, 0) : 0;
     
     const totalSpending = invoices.reduce((sum, invoice) => sum + invoice.totalAmount, 0);
     
@@ -76,7 +76,7 @@ export default function SpendingAnalysis() {
       difference: totalBudget - totalSpending,
       percentage: totalBudget > 0 ? (totalSpending / totalBudget) * 100 : 0,
     };
-  }, [budget, invoices]);
+  }, [budgets, invoices]);
 
   // Calculate top vendors
   const topVendors = useMemo(() => {
@@ -236,7 +236,7 @@ export default function SpendingAnalysis() {
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={spendingData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
+                <XAxis dataKey="monthLabel" />
                 <YAxis />
                 <Tooltip 
                   formatter={(value: number) => [`£${value.toFixed(2)}`, "Spending"]}

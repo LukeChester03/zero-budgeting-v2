@@ -16,7 +16,7 @@ import {
   Tooltip,
 } from "recharts";
 import { TrendingUp, BarChart3 } from "lucide-react";
-import { cn } from "@/lib/utils";
+
 
 // Animation variants for card entry
 const cardVariants: Variants = {
@@ -31,8 +31,10 @@ const cardVariants: Variants = {
 export default function SavingsTrendCard() {
   // Fetch budgets and savings categories
   const budgets = useFirebaseStore((state) => state.budgets);
-  const savingsGroup = budgetTemplate.find((g) => g.title === "Savings & Investments");
-  const savingsCategories = savingsGroup?.categories || [];
+  const savingsCategories = useMemo(() => {
+    const savingsGroup = budgetTemplate.find((g) => g.title === "Savings & Investments");
+    return savingsGroup?.categories || [];
+  }, []);
 
   // Prepare data for the chart: array of { month, total }
   const data = useMemo(() => {

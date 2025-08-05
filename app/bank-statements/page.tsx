@@ -7,7 +7,7 @@ import BankStatementAnalysis from "@/app/components/BankStatementAnalysis";
 import BankStatementList from "@/app/components/BankStatementList";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, TrendingUp, BarChart3, FileText } from "lucide-react";
+import { Upload, BarChart3, FileText } from "lucide-react";
 
 export default function BankStatementsPage() {
   return (

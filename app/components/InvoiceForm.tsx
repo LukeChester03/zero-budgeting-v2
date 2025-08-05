@@ -8,9 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Receipt, Plus, Save } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { Receipt, Plus, Save, Calendar, Building2, PoundSterling } from "lucide-react";
 import { useInvoiceStore } from "@/app/lib/invoiceStore";
 import { budgetTemplate } from "@/app/utils/template";
 import { cn } from "@/lib/utils";
@@ -210,12 +209,12 @@ export default function InvoiceForm() {
           <Card className="border-dashed">
             <CardContent className="p-6 text-center text-muted-foreground">
               <Receipt className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>No items added yet. Click "Add Item" to start.</p>
+              <p>No items added yet. Click &quot;Add Item&quot; to start.</p>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-3">
-            {items.map((item, index) => (
+            {items.map((item) => (
               <Card key={item.id}>
                 <CardContent className="p-4">
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

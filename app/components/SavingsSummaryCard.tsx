@@ -6,18 +6,10 @@ import { motion, Variants } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { PiggyBank, TrendingUp, Target } from "lucide-react";
+import { PiggyBank } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // — Motion variants —
-const containerVariants: Variants = {
-  hidden: {},
-  visible: {
-    when: "beforeChildren",
-    staggerChildren: 0.1,
-  },
-};
-
 const cardVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
   visible: {
@@ -60,12 +52,11 @@ export default function SavingsSummaryCard() {
 
   return (
     <motion.div
-      variants={containerVariants}
+      variants={cardVariants}
       initial="hidden"
       animate="visible"
       whileHover="hover"
       className="w-full h-full"
-      variants={cardVariants}
     >
       <Card className="h-full shadow-lg">
         <CardHeader>

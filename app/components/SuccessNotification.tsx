@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { CheckCircle, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -15,11 +15,8 @@ export default function SuccessNotification({
   isVisible, 
   onClose 
 }: SuccessNotificationProps) {
-  const [isAnimating, setIsAnimating] = useState(false);
-
   useEffect(() => {
     if (isVisible) {
-      setIsAnimating(true);
       const timer = setTimeout(() => {
         onClose();
       }, 3000);

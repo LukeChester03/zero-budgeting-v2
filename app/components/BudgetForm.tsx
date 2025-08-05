@@ -3,8 +3,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useFirebaseStore } from "@/lib/store-firebase";
 import { useAuth } from "@/lib/auth-context";
-import { FieldValue, deleteField } from "firebase/firestore";
-import AddCategoryModal from "./AddCategoryModal";
 import CustomCategoryManager from "./CustomCategoryManager";
 import SaveTemplateModal from "./SaveTemplateModal";
 import TemplateSelector from "./TemplateSelector";
@@ -13,7 +11,6 @@ import { motion, Variants } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,81 +20,20 @@ import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import {
   Calculator,
-  Calendar,
-  CreditCard,
-  DollarSign,
   Home,
-  ShoppingBag,
-  Target,
+  Car,
+  UtensilsCrossed,
   Zap,
   Shield,
+  CreditCard,
+  Target,
   Plus,
   Save,
   RotateCcw,
   CheckCircle,
   Edit,
-  Trash2,
-  AlertCircle,
   TrendingUp,
   TrendingDown,
-  Car,
-  Heart,
-  Plane,
-  GraduationCap,
-  Building2,
-  UtensilsCrossed,
-  Gamepad2,
-  BookOpen,
-  Music,
-  Camera,
-  Gift,
-  Wifi,
-  Phone,
-  Bus,
-  Train,
-  Bike,
-  Footprints,
-  Baby,
-  Dog,
-  Cat,
-  TreePine,
-  Sun,
-  CloudRain,
-  Snowflake,
-  Leaf,
-  Flower2,
-  Gem,
-  Crown,
-  Star,
-  HeartHandshake,
-  HandHeart,
-  PiggyBank,
-  Coins,
-  Banknote,
-  Wallet,
-  CreditCard as CreditCardIcon,
-  Building,
-  Home as HomeIcon,
-  Car as CarIcon,
-  Plane as PlaneIcon,
-  GraduationCap as GraduationCapIcon,
-  Heart as HeartIcon,
-  TreePine as TreePineIcon,
-  Sun as SunIcon,
-  CloudRain as CloudRainIcon,
-  Snowflake as SnowflakeIcon,
-  Leaf as LeafIcon,
-  Flower2 as Flower2Icon,
-  Gem as GemIcon,
-  Crown as CrownIcon,
-  Star as StarIcon,
-  HeartHandshake as HeartHandshakeIcon,
-  HandHeart as HandHeartIcon,
-  PiggyBank as PiggyBankIcon,
-  Coins as CoinsIcon,
-  Banknote as BanknoteIcon,
-  Wallet as WalletIcon,
-  Building as BuildingIcon,
   HelpCircle,
   Eye,
   EyeOff,
@@ -107,6 +43,8 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { DollarSign } from "lucide-react";
 
 // Category icons mapping
 const CATEGORY_ICONS: { [key: string]: React.ReactNode } = {
@@ -152,7 +90,6 @@ export default function BudgetForm() {
   const getBudgetTotal = useFirebaseStore((s) => s.getBudgetTotal);
   const getBudgetRemaining = useFirebaseStore((s) => s.getBudgetRemaining);
   const getCustomCategories = useFirebaseStore((s) => s.getCustomCategories);
-  const addCustomCategory = useFirebaseStore((s) => s.addCustomCategory);
   const removeCustomCategoryFromStore = useFirebaseStore((s) => s.removeCustomCategory);
   const debts = useFirebaseStore((s) => s.debts);
   const budgets = useFirebaseStore((s) => s.budgets);
@@ -165,13 +102,12 @@ export default function BudgetForm() {
   const [selectedBudget, setSelectedBudget] = useState<string | null>(null);
   const [amounts, setAmounts] = useState<{ [cat: string]: number }>({});
   const [isEditing, setIsEditing] = useState(false);
-  const [editableGoals, setEditableGoals] = useState<Set<string>>(new Set());
   const [availableMonthsList, setAvailableMonthsList] = useState<string[]>([]);
   const [showRemaining, setShowRemaining] = useState(false);
   const [saveTemplateModalOpen, setSaveTemplateModalOpen] = useState(false);
   const [overBudgetModalOpen, setOverBudgetModalOpen] = useState(false);
   const [overBudgetReason, setOverBudgetReason] = useState("");
-  const [pendingBudgetData, setPendingBudgetData] = useState<any>(null);
+  const [pendingBudgetData, setPendingBudgetData] = useState<{ month: string; income: number; allocations: { category: string; amount: number }[]; overBudgetReason?: string } | null>(null);
   const [budgetSaved, setBudgetSaved] = useState(false);
   const [infoModalOpen, setInfoModalOpen] = useState(false);
   const [infoModalCategory, setInfoModalCategory] = useState("");
@@ -226,7 +162,7 @@ export default function BudgetForm() {
     if (!defaultTemplate) return [];
     
     // Use sections from template if available, otherwise fall back to hardcoded sections
-    const templateSections = (defaultTemplate as any).sections;
+    const templateSections = (defaultTemplate as { sections?: { title: string; categories: string[] }[] }).sections;
     
     if (templateSections && templateSections.length > 0) {
       // Use template sections with icons
@@ -310,7 +246,7 @@ export default function BudgetForm() {
   useEffect(() => {
     if (!selectedMonth) return;
 
-    let initialAmounts: { [cat: string]: number } = {};
+    const initialAmounts: { [cat: string]: number } = {};
 
     // If a specific budget is selected from dropdown, load its allocations first
     if (selectedBudget) {
@@ -345,7 +281,7 @@ export default function BudgetForm() {
     }
 
     setAmounts(initialAmounts);
-  }, [selectedMonth, selectedBudget, currentBudget, previousBudget, debts]);
+  }, [selectedMonth, selectedBudget, currentBudget, previousBudget, debts, budgets]);
 
   // Auto-load default template when component mounts and no amounts are set
   useEffect(() => {
@@ -492,7 +428,7 @@ export default function BudgetForm() {
     await saveBudgetData(budgetData);
   };
 
-  const saveBudgetData = async (budgetData: any) => {
+  const saveBudgetData = async (budgetData: { month: string; income: number; allocations: { category: string; amount: number }[]; overBudgetReason?: string }) => {
     try {
       // Create budget data without overBudgetReason first
       const budgetWithoutReason = { ...budgetData };
@@ -520,7 +456,7 @@ export default function BudgetForm() {
         const activeDebts = debts.filter(debt => debt.isActive);
         
         // Add goal contributions to allocations
-        let updatedAllocations = [...budgetWithoutReason.allocations];
+        const updatedAllocations = [...budgetWithoutReason.allocations];
         activeGoals.forEach(goal => {
           const existingAllocation = updatedAllocations.find(alloc => alloc.category === goal.title);
           if (existingAllocation) {
@@ -552,7 +488,11 @@ export default function BudgetForm() {
           allocations: updatedAllocations
         };
         
-        const newBudget = await addBudget(budgetWithAllocations);
+        const newBudget = await addBudget({
+          ...budgetWithAllocations,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
         savedBudgetId = newBudget.id;
         console.log('Budget created successfully with goal and debt allocations');
       }
@@ -566,8 +506,8 @@ export default function BudgetForm() {
 
       // Show the view budget toast
       showViewBudgetToast(savedBudgetId);
-    } catch (error) {
-      console.error('Error saving budget:', error);
+    } catch (error: unknown) {
+      console.error("Error:", error instanceof Error ? error.message : String(error));
       toast({
         title: "Error",
         description: "Failed to save budget. Please try again.",
@@ -599,18 +539,6 @@ export default function BudgetForm() {
         variant: "destructive",
       });
     }
-  };
-
-  const toggleGoalEdit = (goalTitle: string) => {
-    setEditableGoals(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(goalTitle)) {
-        newSet.delete(goalTitle);
-      } else {
-        newSet.add(goalTitle);
-      }
-      return newSet;
-    });
   };
 
   const handleTemplateSelect = (categories: string[]) => {
@@ -706,10 +634,7 @@ export default function BudgetForm() {
                 {selectedMonth && (
                                   <div className="space-y-3">
                   <Label className="text-sm sm:text-base font-semibold">Step 1.5: Load Template (Optional)</Label>
-                    <TemplateSelector 
-                      onTemplateSelect={handleTemplateSelect}
-                      currentAllocations={allocationsArray}
-                    />
+                    <TemplateSelector onTemplateSelect={handleTemplateSelect} />
                   </div>
                 )}
 
@@ -1103,7 +1028,7 @@ export default function BudgetForm() {
                  const isDebtCategory = section.title === "Debts";
                  const goal = goals.find(g => g.title === cat);
                  const debt = debts.find(d => d.name === cat);
-                 const isEditable = editableGoals.has(cat);
+                 const isEditable = false; // Removed editableGoals state
                  
                  return (
                    <div key={cat} className="space-y-2">
@@ -1383,7 +1308,6 @@ export default function BudgetForm() {
         open={saveTemplateModalOpen}
         onClose={() => setSaveTemplateModalOpen(false)}
         currentAllocations={allocationsArray}
-        currentMonth={selectedMonth}
       />
 
       {/* Over Budget Modal */}

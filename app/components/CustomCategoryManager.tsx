@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Plus, X, Edit } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useFirebaseStore } from "@/lib/store-firebase";
 import { useToast } from "@/hooks/use-toast";
 import AddCategoryModal from "./AddCategoryModal";
@@ -15,9 +14,9 @@ interface CustomCategoryManagerProps {
 
 export default function CustomCategoryManager({ section, title }: CustomCategoryManagerProps) {
   const [modalOpen, setModalOpen] = useState(false);
-  const [isRemoving, setIsRemoving] = useState<string | null>(null);
+
   
-  const { getCustomCategories, addCustomCategory, removeCustomCategory } = useFirebaseStore();
+  const { getCustomCategories, addCustomCategory } = useFirebaseStore();
   const { toast } = useToast();
   
   const categories = getCustomCategories(section);
@@ -40,25 +39,7 @@ export default function CustomCategoryManager({ section, title }: CustomCategory
     }
   };
 
-  const handleRemoveCategory = async (categoryName: string) => {
-    try {
-      setIsRemoving(categoryName);
-      await removeCustomCategory(section, categoryName);
-      toast({
-        title: "Success",
-        description: `Category "${categoryName}" removed successfully!`,
-      });
-    } catch (error) {
-      console.error('Error removing custom category:', error);
-      toast({
-        title: "Error",
-        description: "Failed to remove custom category. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsRemoving(null);
-    }
-  };
+
 
   return (
     <div className="space-y-3">

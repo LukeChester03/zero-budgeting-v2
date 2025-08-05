@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,16 +56,6 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   const { signIn, signInWithGoogle, user } = useAuth();
 
-  // Auto-close modal when user is authenticated
-  useEffect(() => {
-    if (user && isOpen) {
-      setTimeout(() => {
-        onClose();
-        resetForm();
-      }, 1000);
-    }
-  }, [user, isOpen, onClose]);
-
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -85,13 +74,23 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     },
   });
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     loginForm.reset();
     registerForm.reset();
     setAuthError("");
     setSuccessMessage("");
     setShowSuccess(false);
-  };
+  }, [loginForm, registerForm]);
+
+  // Auto-close modal when user is authenticated
+  useEffect(() => {
+    if (user && isOpen) {
+      setTimeout(() => {
+        onClose();
+        resetForm();
+      }, 1000);
+    }
+  }, [user, isOpen, onClose, resetForm]);
 
   const handleSubmit = async (data: LoginFormData | RegisterFormData) => {
     setIsLoading(true);
@@ -150,22 +149,25 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         console.log('Sign in completed successfully');
         // Modal will be closed automatically by useEffect when user is authenticated
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Auth error:", error);
-      if (error.code === 'auth/email-already-in-use') {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorCode = (error as { code?: string }).code;
+      
+      if (errorCode === 'auth/email-already-in-use') {
         setAuthError("An account with this email already exists");
-      } else if (error.code === 'auth/weak-password') {
+      } else if (errorCode === 'auth/weak-password') {
         setAuthError("Password should be at least 6 characters long");
-      } else if (error.code === 'auth/invalid-email') {
+      } else if (errorCode === 'auth/invalid-email') {
         setAuthError("Please enter a valid email address");
-      } else if (error.code === 'auth/operation-not-allowed') {
+      } else if (errorCode === 'auth/operation-not-allowed') {
         setAuthError("Email/password accounts are not enabled. Please contact support.");
-      } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+      } else if (errorCode === 'auth/user-not-found' || errorCode === 'auth/wrong-password') {
         setAuthError("Incorrect email or password");
-      } else if (error.message && error.message.includes('permission-denied')) {
+      } else if (errorMessage.includes('permission-denied')) {
         setAuthError("Permission denied. Please try again or contact support.");
       } else {
-        setAuthError(error.message || "Authentication failed. Please try again.");
+        setAuthError(errorMessage || "Authentication failed. Please try again.");
       }
     } finally {
       setIsLoading(false);
@@ -178,9 +180,10 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
     try {
       await signInWithGoogle();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Google sign in error:", error);
-      setAuthError(error.message || "Google sign in failed. Please try again.");
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setAuthError(errorMessage || "Google sign in failed. Please try again.");
     } finally {
       setIsLoading(false);
     }

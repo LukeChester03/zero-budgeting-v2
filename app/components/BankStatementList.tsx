@@ -2,14 +2,13 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Separator } from "@/components/ui/separator";
-import { FileText, Search, Filter, Trash2, Calendar, Building2, PoundSterling, Download } from "lucide-react";
+import { FileText, Search, Trash2, Calendar, Building2, PoundSterling } from "lucide-react";
 import { useBankStatementStore, BankStatement } from "@/app/lib/bankStatementStore";
 import { cn } from "@/lib/utils";
 

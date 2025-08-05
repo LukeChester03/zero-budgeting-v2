@@ -1,19 +1,18 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useFirebaseStore } from "@/lib/store-firebase";
+import { useFirebaseStore, Budget, Allocation, Goal, Debt } from "@/lib/store-firebase";
 import { useAuth } from "@/lib/auth-context";
 import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Separator } from "@/components/ui/separator";
 import { 
-  Calendar, 
   TrendingUp, 
   TrendingDown, 
   DollarSign, 
@@ -21,19 +20,13 @@ import {
   PiggyBank, 
   BarChart3, 
   PieChart, 
-  ArrowUpRight, 
-  ArrowDownRight,
   Trash2,
   Eye,
   EyeOff,
-  Filter,
-  Search,
   Plus,
-  History,
   Award,
   AlertCircle,
   CheckCircle,
-  Clock,
   Table,
   List,
   CreditCard
@@ -41,7 +34,8 @@ import {
 import { cn } from "@/lib/utils";
 import { budgetTemplate } from "@/app/utils/template";
 import { useRouter, useSearchParams } from "next/navigation";
-import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { Suspense } from "react";
+import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 // Motion variants
 const containerVariants = {
@@ -63,7 +57,7 @@ const itemVariants = {
   },
 };
 
-export default function PreviousBudgetsPage() {
+function PreviousBudgetsContent() {
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -75,7 +69,6 @@ export default function PreviousBudgetsPage() {
   const getBudgetRemaining = useFirebaseStore((s) => s.getBudgetRemaining);
   
   const [selectedBudget, setSelectedBudget] = useState<string | null>(null);
-  const [showRemaining, setShowRemaining] = useState(true);
   const [sortBy, setSortBy] = useState<"date" | "income" | "savings" | "efficiency">("date");
   const [viewMode, setViewMode] = useState<"breakdown" | "table">("breakdown");
 
@@ -108,7 +101,9 @@ export default function PreviousBudgetsPage() {
   }, [searchParams, budgets, router]);
 
   // Get savings categories
-  const savingsCategories = budgetTemplate.find(group => group.title === "Savings & Investments")?.categories || [];
+  const savingsCategories = useMemo(() => {
+    return budgetTemplate.find(group => group.title === "Savings & Investments")?.categories || [];
+  }, []);
 
   // Sort budgets based on selected criteria
   const sortedBudgets = useMemo(() => {
@@ -137,7 +132,7 @@ export default function PreviousBudgetsPage() {
       default:
         return sorted;
     }
-  }, [budgets, sortBy, getBudgetRemaining, getBudgetTotal, savingsCategories]);
+  }, [budgets, sortBy, getBudgetTotal, savingsCategories]);
 
   // Calculate insights
   const insights = useMemo(() => {
@@ -207,12 +202,12 @@ export default function PreviousBudgetsPage() {
     }
   };
 
-  const getBudgetInsights = (budget: any) => {
+  const getBudgetInsights = (budget: Budget) => {
     const totalAllocated = getBudgetTotal(budget.allocations);
     const remaining = getBudgetRemaining(budget.allocations, budget.income);
     const savings = budget.allocations
-      .filter((a: any) => savingsCategories.includes(a.category))
-      .reduce((sum: number, a: any) => sum + a.amount, 0);
+      .filter((a: Allocation) => savingsCategories.includes(a.category))
+      .reduce((sum: number, a: Allocation) => sum + a.amount, 0);
     const savingsRate = (savings / budget.income) * 100;
     const allocationRate = (totalAllocated / budget.income) * 100;
 
@@ -253,7 +248,7 @@ export default function PreviousBudgetsPage() {
   };
 
   // Enhanced analytics functions
-  const getSavingsTrend = (budgets: any[]) => {
+  const getSavingsTrend = (budgets: Budget[]) => {
     return budgets.slice(0, 6).map(budget => {
       const insights = getBudgetInsights(budget);
       return {
@@ -266,12 +261,12 @@ export default function PreviousBudgetsPage() {
     }).reverse();
   };
 
-  const getCategoryBreakdown = (budgets: any[]) => {
+  const getCategoryBreakdown = (budgets: Budget[]) => {
     const latestBudget = budgets[0];
     if (!latestBudget) return [];
     
     const categoryTotals: { [key: string]: number } = {};
-    latestBudget.allocations.forEach((allocation: any) => {
+    latestBudget.allocations.forEach((allocation: Allocation) => {
       // Skip savings, investments, goals, and debts - they're not regular expenses
       if (allocation.category === "Emergency Fund" || 
           allocation.category === "Investments" || 
@@ -298,7 +293,7 @@ export default function PreviousBudgetsPage() {
       .sort((a, b) => b.value - a.value);
   };
 
-  const getBudgetEfficiency = (budgets: any[]) => {
+  const getBudgetEfficiency = (budgets: Budget[]) => {
     return budgets.slice(0, 6).map(budget => {
       const insights = getBudgetInsights(budget);
       return {
@@ -310,7 +305,7 @@ export default function PreviousBudgetsPage() {
     }).reverse();
   };
 
-  const getAverageSavingsRate = (budgets: any[]) => {
+  const getAverageSavingsRate = (budgets: Budget[]) => {
     if (budgets.length === 0) return 0;
     const totalRate = budgets.reduce((sum, budget) => {
       const insights = getBudgetInsights(budget);
@@ -319,19 +314,19 @@ export default function PreviousBudgetsPage() {
     return totalRate / budgets.length;
   };
 
-  const getTotalSavings = (budgets: any[]) => {
+  const getTotalSavings = (budgets: Budget[]) => {
     return budgets.reduce((sum, budget) => {
       const insights = getBudgetInsights(budget);
       return sum + insights.savings;
     }, 0);
   };
 
-  const getMostExpensiveCategory = (budgets: any[]) => {
+  const getMostExpensiveCategory = (budgets: Budget[]) => {
     const latestBudget = budgets[0];
     if (!latestBudget) return null;
     
     const categoryTotals: { [key: string]: number } = {};
-    latestBudget.allocations.forEach((allocation: any) => {
+    latestBudget.allocations.forEach((allocation: Allocation) => {
       // Skip savings, investments, goals, and debts - they're not regular expenses
       if (allocation.category === "Emergency Fund" || 
           allocation.category === "Investments" || 
@@ -354,10 +349,10 @@ export default function PreviousBudgetsPage() {
     return maxCategory;
   };
 
-  const getExpenseTrend = (budgets: any[]) => {
+  const getExpenseTrend = (budgets: Budget[]) => {
     return budgets.slice(0, 6).map(budget => {
       // Calculate total expenses (excluding savings/investments, goals, and debts)
-      const totalExpenses = budget.allocations.reduce((sum: number, allocation: any) => {
+      const totalExpenses = budget.allocations.reduce((sum: number, allocation: Allocation) => {
         if (allocation.category === "Emergency Fund" || 
             allocation.category === "Investments" || 
             allocation.category === "Pension" ||
@@ -381,46 +376,12 @@ export default function PreviousBudgetsPage() {
     }).reverse();
   };
 
-  const getGoalAllocations = (budgets: any[]) => {
-    const latestBudget = budgets[0];
-    if (!latestBudget) return [];
-    
-    return latestBudget.allocations
-      .filter((allocation: any) => goals.some((g: any) => g.title === allocation.category))
-      .map((allocation: any) => {
-        const goal = goals.find((g: any) => g.title === allocation.category);
-        return {
-          name: allocation.category,
-          value: allocation.amount,
-          target: goal?.target || 0,
-          monthlyContribution: goal?.monthlyContribution || 0
-        };
-      })
-      .sort((a: any, b: any) => b.value - a.value);
-  };
 
-  const getDebtAllocations = (budgets: any[]) => {
-    const latestBudget = budgets[0];
-    if (!latestBudget) return [];
-    
-    return latestBudget.allocations
-      .filter((allocation: any) => debts.some((d: any) => d.name === allocation.category))
-      .map((allocation: any) => {
-        const debt = debts.find((d: any) => d.name === allocation.category);
-        return {
-          name: allocation.category,
-          value: allocation.amount,
-          totalAmount: debt?.totalAmount || 0,
-          monthlyRepayment: debt?.monthlyRepayment || 0
-        };
-      })
-      .sort((a: any, b: any) => b.value - a.value);
-  };
 
-  const getTotalGoalAllocations = (budgets: any[]) => {
-    return budgets.reduce((sum: number, budget: any) => {
-      return sum + budget.allocations.reduce((budgetSum: number, allocation: any) => {
-        if (goals.some((g: any) => g.title === allocation.category)) {
+  const getTotalGoalAllocations = (budgets: Budget[]) => {
+    return budgets.reduce((sum: number, budget: Budget) => {
+      return sum + budget.allocations.reduce((budgetSum: number, allocation: Allocation) => {
+        if (goals.some((g: Goal) => g.title === allocation.category)) {
           return budgetSum + allocation.amount;
         }
         return budgetSum;
@@ -428,10 +389,10 @@ export default function PreviousBudgetsPage() {
     }, 0);
   };
 
-  const getTotalDebtAllocations = (budgets: any[]) => {
-    return budgets.reduce((sum: number, budget: any) => {
-      return sum + budget.allocations.reduce((budgetSum: number, allocation: any) => {
-        if (debts.some((d: any) => d.name === allocation.category)) {
+  const getTotalDebtAllocations = (budgets: Budget[]) => {
+    return budgets.reduce((sum: number, budget: Budget) => {
+      return sum + budget.allocations.reduce((budgetSum: number, allocation: Allocation) => {
+        if (debts.some((d: Debt) => d.name === allocation.category)) {
           return budgetSum + allocation.amount;
         }
         return budgetSum;
@@ -678,7 +639,7 @@ export default function PreviousBudgetsPage() {
                       <p><strong>Overview Tab:</strong> See your overall financial performance and key metrics across all budgets.</p>
                       <p><strong>Analytics Tab:</strong> Get detailed insights into your spending patterns, savings trends, and financial recommendations.</p>
                       <p><strong>Budget Details Tab:</strong> Browse and select individual budgets to view detailed breakdowns and analytics.</p>
-                      <p className="text-blue-700 font-medium">💡 Tip: Select a specific budget from the "Budget Details" tab to see detailed analytics for that month.</p>
+                      <p className="text-blue-700 font-medium">💡 Tip: Select a specific budget from the &quot;Budget Details&quot; tab to see detailed analytics for that month.</p>
                     </div>
                   </div>
                 </div>
@@ -705,7 +666,7 @@ export default function PreviousBudgetsPage() {
                         Budget Overview
                       </CardTitle>
                       <div className="flex items-center gap-2">
-                        <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                        <Select value={sortBy} onValueChange={(value: string) => setSortBy(value as "date" | "income" | "savings" | "efficiency")}>
                           <SelectTrigger className="w-48">
                             <SelectValue placeholder="Sort by..." />
                           </SelectTrigger>
@@ -802,18 +763,7 @@ export default function PreviousBudgetsPage() {
                                   </span>
                                 </div>
 
-                                {/* Over Budget Reason */}
-                                {budget.overBudgetReason && insights.status === "over" && (
-                                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                                    <div className="flex items-start gap-2">
-                                      <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                                      <div className="space-y-1">
-                                        <p className="text-xs font-medium text-amber-800">Over Budget Reason</p>
-                                        <p className="text-xs text-amber-700">{budget.overBudgetReason}</p>
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
+
                                 
                   
 
@@ -965,7 +915,7 @@ export default function PreviousBudgetsPage() {
                           />
                           <YAxis tick={{ fontSize: 12 }} />
                           <Tooltip 
-                            formatter={(value: any) => [`£${value.toFixed(2)}`, 'Savings']}
+                            formatter={(value: number) => [`£${value.toFixed(2)}`, 'Savings']}
                             labelFormatter={(label) => `Month: ${label}`}
                           />
                           <Area 
@@ -999,7 +949,7 @@ export default function PreviousBudgetsPage() {
                           />
                           <YAxis tick={{ fontSize: 12 }} />
                           <Tooltip 
-                            formatter={(value: any) => [`${value.toFixed(1)}%`, 'Rate']}
+                            formatter={(value: number) => [`${value.toFixed(1)}%`, 'Rate']}
                             labelFormatter={(label) => `Month: ${label}`}
                           />
                           <Bar dataKey="efficiency" fill="#3b82f6" radius={[4, 4, 0, 0]} />
@@ -1046,7 +996,7 @@ export default function PreviousBudgetsPage() {
                               ][index % 8]} />
                             ))}
                           </Pie>
-                          <Tooltip formatter={(value: any) => [`£${value.toFixed(2)}`, 'Amount']} />
+                          <Tooltip formatter={(value: number) => [`£${value.toFixed(2)}`, 'Amount']} />
                         </RechartsPieChart>
                       </ResponsiveContainer>
                     </CardContent>
@@ -1071,7 +1021,7 @@ export default function PreviousBudgetsPage() {
                           />
                           <YAxis tick={{ fontSize: 12 }} />
                           <Tooltip 
-                            formatter={(value: any) => [`£${value.toFixed(2)}`, 'Amount']}
+                            formatter={(value: number) => [`£${value.toFixed(2)}`, 'Amount']}
                             labelFormatter={(label) => `Month: ${label}`}
                           />
                           <Bar dataKey="totalAllocated" fill="#3b82f6" radius={[4, 4, 0, 0]} />
@@ -1110,7 +1060,7 @@ export default function PreviousBudgetsPage() {
                           />
                           <YAxis tick={{ fontSize: 12 }} />
                           <Tooltip 
-                            formatter={(value: any) => [`${value.toFixed(1)}%`, 'Rate']}
+                            formatter={(value: number) => [`${value.toFixed(1)}%`, 'Rate']}
                             labelFormatter={(label) => `Month: ${label}`}
                           />
                           <Line 
@@ -1481,5 +1431,20 @@ export default function PreviousBudgetsPage() {
         </motion.div>
       </div>
     </motion.div>
+  );
+}
+
+export default function PreviousBudgetsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading previous budgets...</p>
+        </div>
+      </div>
+    }>
+      <PreviousBudgetsContent />
+    </Suspense>
   );
 }

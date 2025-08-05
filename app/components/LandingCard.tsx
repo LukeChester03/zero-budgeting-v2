@@ -4,8 +4,7 @@ import React, { ReactNode } from "react";
 import Link from "next/link";
 import { motion, Variants } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+
 
 type LandingCardProps = {
   title: string;

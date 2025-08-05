@@ -19,7 +19,6 @@ const navItemVariants = {
     opacity: 1,
     y: 0,
     transition: {
-      type: "spring",
       stiffness: 300,
       damping: 20,
     },

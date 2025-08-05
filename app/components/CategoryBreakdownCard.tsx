@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
 import { PieChart as PieChartIcon, TrendingUp } from "lucide-react";
-import { cn } from "@/lib/utils";
+
 
 // Entry animation for the card
 const cardVariants: Variants = {
@@ -23,8 +23,12 @@ const cardVariants: Variants = {
 
 export default function CategoryBreakdownCard() {
   const budgets = useBudgetStore((state) => state.budgets);
-  const savingsGroup = budgetTemplate.find((g) => g.title === "Savings & Investments");
-  const categories = savingsGroup?.categories || [];
+
+  // Wrap categories in useMemo
+  const categories = useMemo(() => {
+    const savingsGroup = budgetTemplate.find((g) => g.title === "Savings & Investments");
+    return savingsGroup?.categories || [];
+  }, []);
 
   // Compute total per category
   const data = useMemo(
@@ -58,7 +62,7 @@ export default function CategoryBreakdownCard() {
             <div className="space-y-2">
               <h3 className="text-2xl font-semibold text-muted-foreground">No Savings Data</h3>
               <p className="text-muted-foreground">
-                Once you've added budgets with savings categories, you'll see a breakdown here.
+                Once you&apos;ve added budgets with savings categories, you&apos;ll see a breakdown here.
               </p>
             </div>
           </CardContent>

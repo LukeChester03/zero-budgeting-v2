@@ -128,12 +128,7 @@ export const useBudgetStore = create<BudgetState>()(
           return {
             debts: [...state.debts, { 
               id: uuidv4(), 
-              monthlyRepayment, 
-              interestRate: debt.interestRate || 0,
-              startDate: debt.startDate || new Date().toISOString().split('T')[0],
-              debtType: debt.debtType || "other",
-              priority: debt.priority || "medium",
-              notes: debt.notes || "",
+              monthlyRepayment,
               ...debt 
             }],
           };

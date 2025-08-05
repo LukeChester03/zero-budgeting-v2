@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, [setStoreUser]);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string): Promise<void> => {
     try {
       console.log('AuthContext: Starting sign in for:', email);
       setError(null);
@@ -94,21 +94,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       console.log('AuthContext: Sign in process completed successfully');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("AuthContext: Sign in error:", error);
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-        throw new Error("Incorrect email or password");
-      } else if (error.code === 'auth/user-disabled') {
-        throw new Error("This account has been disabled");
-      } else if (error.code === 'auth/too-many-requests') {
-        throw new Error("Too many failed attempts. Please try again later");
+      if (error instanceof Error) {
+        if (error.message === 'auth/user-not-found' || error.message === 'auth/wrong-password') {
+          throw new Error("Incorrect email or password");
+        } else if (error.message === 'auth/user-disabled') {
+          throw new Error("This account has been disabled");
+        } else if (error.message === 'auth/too-many-requests') {
+          throw new Error("Too many failed attempts. Please try again later");
+        } else {
+          throw new Error("Sign in failed. Please try again.");
+        }
       } else {
-        throw new Error(error.message || "Sign in failed");
+        throw new Error("Sign in failed. Please try again.");
       }
     }
   };
 
-  const signUp = async (email: string, password: string, displayName: string) => {
+  const signUp = async (email: string, password: string, displayName: string): Promise<void> => {
     try {
       setError(null);
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -128,23 +132,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await auth.signOut();
       
       throw new Error("Account created! Please check your email and verify your account before signing in.");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Sign up error:", error);
-      if (error.code === 'auth/email-already-in-use') {
-        throw new Error("An account with this email already exists");
-      } else if (error.code === 'auth/weak-password') {
-        throw new Error("Password should be at least 6 characters long");
-      } else if (error.code === 'auth/invalid-email') {
-        throw new Error("Please enter a valid email address");
-      } else if (error.code === 'auth/operation-not-allowed') {
-        throw new Error("Email/password accounts are not enabled. Please contact support.");
+      if (error instanceof Error) {
+        if (error.message === 'auth/email-already-in-use') {
+          throw new Error("An account with this email already exists");
+        } else if (error.message === 'auth/weak-password') {
+          throw new Error("Password should be at least 6 characters long");
+        } else if (error.message === 'auth/invalid-email') {
+          throw new Error("Please enter a valid email address");
+        } else if (error.message === 'auth/operation-not-allowed') {
+          throw new Error("Email/password accounts are not enabled. Please contact support.");
+        } else {
+          throw new Error("Sign up failed. Please try again.");
+        }
       } else {
-        throw new Error(error.message || "Sign up failed");
+        throw new Error("Sign up failed. Please try again.");
       }
     }
   };
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (): Promise<void> => {
     try {
       setError(null);
       const { GoogleAuthProvider, signInWithPopup } = await import("firebase/auth");
@@ -168,14 +176,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error('Error checking/creating user profile for Google sign-in:', error);
         // Don't throw error for profile creation as user is already signed in
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Google sign in error:", error);
-      if (error.code === 'auth/popup-closed-by-user') {
-        throw new Error("Sign-in was cancelled");
-      } else if (error.code === 'auth/popup-blocked') {
-        throw new Error("Pop-up was blocked. Please allow pop-ups for this site");
+      if (error instanceof Error) {
+        if (error.message === 'auth/popup-closed-by-user') {
+          throw new Error("Sign-in was cancelled");
+        } else if (error.message === 'auth/popup-blocked') {
+          throw new Error("Pop-up was blocked. Please allow pop-ups for this site");
+        } else {
+          throw new Error("Google sign in failed. Please try again.");
+        }
       } else {
-        throw new Error(error.message || "Google sign-in failed");
+        throw new Error("Google sign in failed. Please try again.");
       }
     }
   };

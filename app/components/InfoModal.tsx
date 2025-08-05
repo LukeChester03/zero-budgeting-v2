@@ -3,7 +3,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Building2, AlertCircle, TrendingUp, Target, Calculator, PiggyBank, Coins, DollarSign, CreditCard } from "lucide-react";
+import { Shield, Building2, AlertCircle, TrendingUp, Target, PiggyBank, CreditCard } from "lucide-react";
 
 type Props = {
   open: boolean;

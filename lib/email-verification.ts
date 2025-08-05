@@ -1,6 +1,3 @@
-import { User } from 'firebase/auth';
-import { auth } from './firebase';
-import { sendEmailVerification } from 'firebase/auth';
 import validator from 'validator';
 
 // Store verification codes in memory (in production, use a database)

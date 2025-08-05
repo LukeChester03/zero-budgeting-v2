@@ -62,7 +62,7 @@ export default function BudgetPage() {
                     <p><strong>Category Allocation:</strong> Distribute your income across spending categories like housing, food, transportation, etc.</p>
                     <p><strong>Smart Pre-filling:</strong> Previous budgets automatically populate to help you create consistent monthly plans.</p>
                     <p><strong>Budget Summary:</strong> See your allocation breakdown and remaining funds in real-time.</p>
-                    <p className="text-primary font-medium">💡 Tip: Use the "Copy from Previous Budget" feature to quickly create new budgets based on your past allocations.</p>
+                    <p className="text-primary font-medium">💡 Tip: Use the &quot;Copy from Previous Budget&quot; feature to quickly create new budgets based on your past allocations.</p>
                   </div>
                 </div>
               </div>

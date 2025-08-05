@@ -25,7 +25,7 @@ export const auth = getAuth(app);
 export const storage = getStorage(app);
 
 // Analytics will be initialized separately on the client side
-export let analytics: any = null;
+export let analytics: ReturnType<typeof import('firebase/analytics').getAnalytics> | null = null;
 
 // Initialize Analytics only on client side
 if (typeof window !== 'undefined') {

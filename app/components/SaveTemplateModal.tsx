@@ -12,10 +12,9 @@ interface SaveTemplateModalProps {
   open: boolean;
   onClose: () => void;
   currentAllocations: { category: string; amount: number }[];
-  currentMonth: string;
 }
 
-export default function SaveTemplateModal({ open, onClose, currentAllocations, currentMonth }: SaveTemplateModalProps) {
+export default function SaveTemplateModal({ open, onClose, currentAllocations }: SaveTemplateModalProps) {
   const [templateName, setTemplateName] = useState("");
   const { addBudgetTemplate } = useFirebaseStore();
   const { toast } = useToast();

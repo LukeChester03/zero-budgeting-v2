@@ -13,27 +13,12 @@ import { Target, Trash2, Plus, Umbrella, Car, Home, PiggyBank, LifeBuoy } from "
 import { useFirebaseStore } from "@/lib/store-firebase";
 import { cn } from "@/lib/utils";
 
-// Progress bar animation
-const barVariants: Variants = {
-  hidden: { width: 0 },
-  visible: (pct: number) => ({
-    width: `${Math.min(pct, 100)}%`,
-    transition: { duration: 0.8, ease: "easeOut" },
-  }),
-};
-
 // Card animation
 const cardVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
   exit: { opacity: 0, y: -20, transition: { duration: 0.3 } },
   hover: { scale: 1.02, boxShadow: "0 8px 16px rgba(0, 0, 0, 0.1)" },
-};
-
-// Button animation
-const buttonVariants: Variants = {
-  hover: { scale: 1.05, boxShadow: "0 4px 12px rgba(59, 130, 246, 0.3)" },
-  tap: { scale: 0.95 },
 };
 
 // Form input animation
@@ -99,6 +84,7 @@ export default function GoalsTrackerCard() {
       title: formState.title.trim(),
       target: parseFloat(formState.target),
       iconKey: formState.icon,
+      targetMonth: new Date().toISOString().slice(0, 7), // Current month in YYYY-MM format
     });
     setFormState({ title: "", target: "", icon: "piggy" });
     setErrors({});
@@ -168,7 +154,7 @@ export default function GoalsTrackerCard() {
                           <AlertDialogHeader>
                             <AlertDialogTitle>Delete Goal</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Are you sure you want to delete "{goal.title}"? This action cannot be undone.
+                              Are you sure you want to delete &quot;{goal.title}&quot;? This action cannot be undone.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
@@ -183,7 +169,7 @@ export default function GoalsTrackerCard() {
                       {/* Title & Amount */}
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center space-x-3">
-                          <span className="text-primary">{ICONS[goal.iconKey].icon}</span>
+                          <span className="text-primary">{ICONS[goal.iconKey as IconKey].icon}</span>
                           <span className="font-semibold text-foreground">{goal.title}</span>
                         </div>
                         <span className="text-sm font-medium text-muted-foreground">
