@@ -103,13 +103,198 @@ export interface AIQuestion {
   autoPopulate?: boolean; // For fields that should auto-populate from existing data
 }
 
+export interface AIAnalysisResponse {
+  success: boolean;
+  data?: AIAnalysisData;
+  error?: string;
+}
+
+// Enhanced types for bank statement AI analysis
+export interface BankStatementAnalysis {
+  id: string;
+  statementId: string;
+  userId: string;
+  analysisDate: string;
+  
+  // Bank and Account Information
+  bankName: string;
+  accountType: string;
+  statementPeriod: {
+    startDate: string;
+    endDate: string;
+  };
+  
+  // Detailed Transactions
+  transactions: {
+    date: string;
+    description: string;
+    amount: number;
+    type: 'credit' | 'debit';
+    category: string;
+    vendor: string;
+  }[];
+  
+  // Summary Statistics
+  summary: {
+    totalSpending: number;
+    totalIncome: number;
+    netPosition: number;
+    periodDays: number;
+    transactionCount: number;
+    monthlyIncome: number; // User's monthly income from Firebase
+    incomeVsSpending: {
+      percentage: number; // What percentage of income was spent
+      remaining: number; // How much income remains
+      status: 'within_budget' | 'over_budget' | 'excellent_savings';
+    };
+  };
+  
+  // Category Analysis
+  categoryBreakdown: {
+    category: string;
+    amount: number;
+    percentage: number;
+    transactionCount: number;
+    averageTransaction: number;
+    trend: 'increasing' | 'decreasing' | 'stable';
+  }[];
+  
+  // Spending Patterns
+  spendingPatterns: {
+    dailyAverage: number;
+    weeklyAverage: number;
+    highestSpendingDay: string;
+    lowestSpendingDay: string;
+    weekendVsWeekday: {
+      weekend: number;
+      weekday: number;
+      difference: number;
+    };
+  };
+  
+  // Vendor Analysis
+  topVendors: {
+    vendor: string;
+    totalSpent: number;
+    transactionCount: number;
+    category: string;
+    averageAmount: number;
+  }[];
+  
+  // Financial Health Assessment
+  financialHealth: {
+    score: number; // 1-100
+    status: 'excellent' | 'good' | 'fair' | 'poor';
+    factors: string[];
+    recommendations: string[];
+  };
+  
+  // Savings Opportunities
+  savingsOpportunities: {
+    category: string;
+    currentSpending: number;
+    potentialSavings: number;
+    savingsPercentage: number;
+    recommendations: string[];
+  }[];
+  
+  // AI Insights
+  insights: {
+    summary: string;
+    keyFindings: string[];
+    warnings: string[];
+    advice: string[];
+    trends: string[];
+  };
+  
+  // Recommendations
+  recommendations: {
+    immediate: string[];
+    shortTerm: string[];
+    longTerm: string[];
+    priority: 'high' | 'medium' | 'low';
+  };
+}
+
+export interface OverallAnalysis {
+  id: string;
+  userId: string;
+  analysisDate: string;
+  lastUpdated: string;
+  
+  // Overall Financial Summary
+  totalStatements: number;
+  totalTransactions: number;
+  totalSpending: number;
+  totalIncome: number;
+  netPosition: number;
+  analysisPeriod: {
+    startDate: string;
+    endDate: string;
+    days: number;
+  };
+  
+  // Cross-Statement Insights
+  spendingTrends: {
+    month: string;
+    spending: number;
+    income: number;
+    net: number;
+    change: number;
+    monthlyIncome: number; // User's monthly income
+    percentageOfIncome: number; // What percentage of income was spent
+    savingsRate: number; // Savings as percentage of income
+  }[];
+  
+  // Category Evolution
+  categoryEvolution: {
+    category: string;
+    trend: 'increasing' | 'decreasing' | 'stable';
+    changePercentage: number;
+    averageMonthlySpending: number;
+  }[];
+  
+  // Financial Health Trends
+  healthTrends: {
+    month: string;
+    score: number;
+    status: string;
+    factors: string[];
+  }[];
+  
+  // Overall Recommendations
+  overallRecommendations: {
+    summary: string;
+    priorities: string[];
+    actions: string[];
+    timeline: string;
+  };
+}
+
 export interface AIAnalysisRequest {
   preferences: AIPreferences;
   monthlyIncome: number; // This will come from Firebase
 }
 
-export interface AIAnalysisResponse {
-  success: boolean;
-  data?: AIAnalysisData;
-  error?: string;
+// Bank Statement Analysis Request
+export interface BankStatementAnalysisRequest {
+  transactions: Array<{
+    date: string;
+    description: string;
+    amount: number;
+    type: 'debit' | 'credit';
+    category: string;
+  }>;
+  statementMetadata: {
+    fileName: string;
+    bank: string;
+    accountType: string;
+    startDate: string;
+    endDate: string;
+  };
+  userContext?: {
+    monthlyIncome?: number;
+    existingBudgets?: any[];
+    financialGoals?: string[];
+  };
 }

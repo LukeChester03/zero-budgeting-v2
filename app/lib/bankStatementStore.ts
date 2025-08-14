@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { firestoreUtils, COLLECTIONS } from "@/lib/firestore";
+import { useFirebaseStore } from "@/lib/store-firebase";
 
 export interface Transaction {
   id: string;
@@ -29,8 +31,10 @@ export interface BankStatement {
 
 interface BankStatementStore {
   statements: BankStatement[];
-  addStatement: (statement: BankStatement) => void;
-  deleteStatement: (id: string) => void;
+  isLoading: boolean;
+  addStatement: (statement: BankStatement) => Promise<void>;
+  deleteStatement: (id: string) => Promise<void>;
+  loadStatements: () => Promise<void>;
   updateTransactionCategory: (transactionId: string, category: string) => void;
   getTransactionsByDateRange: (startDate: string, endDate: string) => Transaction[];
   getTransactionsByCategory: (category: string) => Transaction[];
@@ -45,16 +49,103 @@ export const useBankStatementStore = create<BankStatementStore>()(
   persist(
     (set, get) => ({
       statements: [],
+      isLoading: false,
 
-      addStatement: (statement: BankStatement) =>
-        set((state) => ({
-          statements: [...state.statements, statement],
-        })),
+      addStatement: async (statement: BankStatement) => {
+        try {
+          console.log('💾 Saving statement to Firebase:', statement.id);
+          
+          // Save the statement to Firebase
+          await firestoreUtils.create(COLLECTIONS.BANK_STATEMENTS, {
+            ...statement,
+            userId: useFirebaseStore.getState().user?.uid || 'unknown'
+          });
+          
+          // Update local state
+          set((state) => ({
+            statements: [...state.statements, statement],
+          }));
+          
+          console.log('✅ Statement saved successfully to Firebase and local state');
+        } catch (error) {
+          console.error('❌ Failed to save statement to Firebase:', error);
+          throw new Error('Failed to save statement');
+        }
+      },
 
-      deleteStatement: (id: string) =>
-        set((state) => ({
-          statements: state.statements.filter((statement) => statement.id !== id),
-        })),
+      loadStatements: async () => {
+        try {
+          set({ isLoading: true });
+          console.log('📥 Loading statements from Firebase...');
+          
+          const userId = useFirebaseStore.getState().user?.uid;
+          if (!userId) {
+            console.warn('⚠️ No user ID available, skipping Firebase load');
+            set({ isLoading: false });
+            return;
+          }
+          
+          // Load statements from Firebase
+          const statements = await firestoreUtils.getWhere(
+            COLLECTIONS.BANK_STATEMENTS,
+            'userId',
+            '==',
+            userId
+          );
+          
+          console.log(`✅ Loaded ${statements.length} statements from Firebase`);
+          
+          // Update local state
+          set({ 
+            statements: statements as BankStatement[],
+            isLoading: false 
+          });
+        } catch (error) {
+          console.error('❌ Failed to load statements from Firebase:', error);
+          set({ isLoading: false });
+          throw new Error('Failed to load statements');
+        }
+      },
+
+      deleteStatement: async (id: string) => {
+        try {
+          console.log('🗑️ Deleting statement from Firebase:', id);
+          
+          // Delete the statement from Firebase
+          await firestoreUtils.delete(COLLECTIONS.BANK_STATEMENTS, id);
+          
+          // Also delete any associated analysis
+          try {
+            // Find analyses that reference this statement
+            const analyses = await firestoreUtils.getWhere(
+              COLLECTIONS.BANK_STATEMENT_ANALYSES,
+              'statementId',
+              '==',
+              id
+            );
+            
+            // Delete each associated analysis
+            for (const analysis of analyses) {
+              console.log('🗑️ Deleting associated analysis:', analysis.id);
+              await firestoreUtils.delete(COLLECTIONS.BANK_STATEMENT_ANALYSES, analysis.id);
+            }
+            
+            console.log(`✅ Deleted ${analyses.length} associated analyses`);
+          } catch (analysisError) {
+            console.warn('⚠️ Could not delete associated analyses:', analysisError);
+          }
+          
+          // Update local state
+          set((state) => ({
+            statements: state.statements.filter((statement) => statement.id !== id),
+          }));
+          
+          console.log('✅ Statement deleted successfully from Firebase and local state');
+        } catch (error) {
+          console.error('❌ Failed to delete statement from Firebase:', error);
+          throw new Error('Failed to delete statement');
+        }
+      },
 
       updateTransactionCategory: (transactionId: string, category: string) =>
         set((state) => ({
