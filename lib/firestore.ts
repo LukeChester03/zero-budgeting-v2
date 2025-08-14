@@ -22,7 +22,8 @@ export const COLLECTIONS = {
   GOALS: "goals",
   USERS: "users",
   CUSTOM_CATEGORIES: "customCategories",
-  BUDGET_TEMPLATES: "budgetTemplates"
+  BUDGET_TEMPLATES: "budgetTemplates",
+  AI_PREFERENCES: "aiPreferences"
 } as const;
 
 // Generic CRUD operations

@@ -13,6 +13,7 @@ import ClientOnly from "@/app/components/ClientOnly";
 import MonthlyIncomeInput from "@/app/components/MonthlyIncomeInput";
 import AuthModal from "@/app/components/AuthModal";
 import WhereDoIStartGuide from "@/app/components/WhereDoIStartGuide";
+import AIBudgetingAssistantModal from "@/app/components/AIBudgetingAssistantModal";
 import { 
   TrendingUp, 
   Target, 
@@ -30,7 +31,8 @@ import {
   ArrowRight,
   BookOpen,
   FolderOpen,
-  Calendar
+  Calendar,
+  Brain
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -40,6 +42,7 @@ export default function Home() {
   const { user } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
   
   // Store selectors
   const budgets = useFirebaseStore((s) => s.budgets);
@@ -567,6 +570,26 @@ export default function Home() {
                 </div>
               </CardContent>
             </Card>
+
+            <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer border-indigo-500/20 hover:border-indigo-500/40">
+              <CardContent className="p-4 sm:p-6" onClick={() => setIsAIAssistantOpen(true)}>
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className="p-2 sm:p-3 bg-indigo-500/10 rounded-xl group-hover:bg-indigo-500/20 transition-colors">
+                    <Brain className="h-6 w-6 sm:h-8 sm:w-8 text-indigo-500" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-base sm:text-lg mb-1">Set up A.I Budgeting Assistant</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3">
+                      Get intelligent budget allocations with AI
+                    </p>
+                    <Badge variant="outline" className="border-indigo-200 text-indigo-700 dark:border-indigo-800 dark:text-indigo-300">
+                      AI Powered
+                    </Badge>
+                  </div>
+                  <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground group-hover:text-indigo-500 transition-colors" />
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </motion.section>
 
@@ -760,6 +783,7 @@ export default function Home() {
         {/* Modals */}
         <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
         <WhereDoIStartGuide isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
+        <AIBudgetingAssistantModal isOpen={isAIAssistantOpen} onClose={() => setIsAIAssistantOpen(false)} />
       </div>
     </motion.div>
   );

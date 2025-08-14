@@ -40,6 +40,7 @@ import {
   Bookmark,
   X,
   AlertTriangle,
+  Brain,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -104,13 +105,15 @@ export default function BudgetForm() {
   const [isEditing, setIsEditing] = useState(false);
   const [availableMonthsList, setAvailableMonthsList] = useState<string[]>([]);
   const [showRemaining, setShowRemaining] = useState(false);
-  const [saveTemplateModalOpen, setSaveTemplateModalOpen] = useState(false);
+  const [budgetSaved, setBudgetSaved] = useState(false);
   const [overBudgetModalOpen, setOverBudgetModalOpen] = useState(false);
   const [overBudgetReason, setOverBudgetReason] = useState("");
   const [pendingBudgetData, setPendingBudgetData] = useState<{ month: string; income: number; allocations: { category: string; amount: number }[]; overBudgetReason?: string } | null>(null);
-  const [budgetSaved, setBudgetSaved] = useState(false);
+  const [saveTemplateModalOpen, setSaveTemplateModalOpen] = useState(false);
   const [infoModalOpen, setInfoModalOpen] = useState(false);
   const [infoModalCategory, setInfoModalCategory] = useState("");
+  const [aiExplanations, setAiExplanations] = useState<{ [key: string]: string }>({});
+  const [showAiExplanations, setShowAiExplanations] = useState(false);
 
   // Get available months for budget selection
   const availableMonths = useMemo(() => {
@@ -600,6 +603,334 @@ export default function BudgetForm() {
     });
   };
 
+  const handleAutoAllocate = async () => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to use AI allocation!",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!selectedMonth) {
+      toast({
+        title: "Error",
+        description: "Please select a month first!",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!income || income <= 0) {
+      toast({
+        title: "Error",
+        description: "Income must be greater than 0 to use AI allocation!",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Show loading state
+      toast({
+        title: "AI Allocation in Progress",
+        description: "Generating personalized budget allocations...",
+      });
+
+      // Import the AI budget integration service
+      const { aiBudgetIntegration } = await import('@/lib/services/ai-budget-integration');
+      
+      // Get user's AI analysis from Firebase
+      const { AIService } = await import('@/lib/services/ai-service');
+      const existingAnalysis = await AIService.getExistingAnalysis(user.uid);
+      
+      console.log('🔍 Existing analysis result:', existingAnalysis);
+      console.log('📊 Has aiAnalysis field:', !!existingAnalysis?.aiAnalysis);
+      console.log('📄 aiAnalysis content:', existingAnalysis?.aiAnalysis);
+      
+      if (!existingAnalysis) {
+        // No analysis document exists - user needs to complete questionnaire
+        toast({
+          title: "AI Analysis Required",
+          description: "Complete the AI questionnaire to get personalized budget allocations!",
+          action: (
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={() => {
+                  toast({
+                    title: "How to Access AI Assistant",
+                    description: "Go to the main menu and click 'AI Budgeting Assistant' to complete the questionnaire.",
+                  });
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Open AI Assistant
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  showFallbackAllocation();
+                }}
+              >
+                Use Default Allocations
+              </Button>
+            </div>
+          ),
+        });
+        return;
+      }
+
+      // Check if aiAnalysis is empty or incomplete
+      if (!existingAnalysis.aiAnalysis || existingAnalysis.aiAnalysis.trim().length === 0) {
+        // Analysis exists but is empty - regenerate it
+        console.log('⚠️ Existing analysis is empty, regenerating...');
+        
+        try {
+          // Update preferences first
+          await AIService.updatePreferences(existingAnalysis.id, {
+            preferences: existingAnalysis.preferences,
+            updatedAt: new Date().toISOString()
+          });
+          
+          // Generate new analysis using the stored preferences
+          const response = await AIService.generateBudgetAnalysis(
+            existingAnalysis.preferences, 
+            income
+          );
+          
+          if (response.success && response.data) {
+            // Update the document with the new analysis
+            await AIService.updatePreferences(existingAnalysis.id, {
+              aiAnalysis: JSON.stringify(response.data),
+              updatedAt: new Date().toISOString()
+            });
+            
+            console.log('✅ New analysis generated and saved');
+            
+            // Use the new analysis for allocations
+            const aiAnalysis = response.data;
+            
+            // Get budget allocations from AI analysis
+            const allocations = aiBudgetIntegration.getBudgetAllocations(aiAnalysis);
+
+            // Map allocations to user-specific debt names and goal titles
+            const mappedAllocations = aiBudgetIntegration.mapAllocationsToUserCategories(
+              allocations, 
+              debts.filter(d => d.isActive), 
+              goals.filter(g => g.isActive)
+            );
+
+            // Convert allocations to amounts format and store explanations
+            const newAmounts: { [key: string]: number } = {};
+            const newExplanations: { [key: string]: string } = {};
+            
+            mappedAllocations.forEach(alloc => {
+              // If amount is 0, calculate it from percentage and income
+              const amount = alloc.amount > 0 ? alloc.amount : (income * alloc.percentage / 100);
+              newAmounts[alloc.category] = amount;
+              newExplanations[alloc.category] = alloc.description;
+            });
+
+            // Update the amounts state and AI explanations
+            setAmounts(newAmounts);
+            setAiExplanations(newExplanations);
+            setShowAiExplanations(true);
+
+            toast({
+              title: "Budget Auto-Allocated!",
+              description: `AI has allocated £${mappedAllocations.reduce((sum, alloc) => {
+                const amount = alloc.amount > 0 ? alloc.amount : (income * alloc.percentage / 100);
+                return sum + amount;
+              }, 0).toFixed(2)} across ${mappedAllocations.length} categories. Review and save when ready.`,
+            });
+            
+            return;
+          } else {
+            throw new Error(response.error || 'Failed to generate analysis');
+          }
+        } catch (error) {
+          console.error('Error regenerating analysis:', error);
+          toast({
+            title: "Analysis Generation Failed",
+            description: "Failed to regenerate AI analysis. Please try completing the questionnaire again.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      // Parse the existing AI analysis
+      const aiAnalysis = JSON.parse(existingAnalysis.aiAnalysis);
+      
+      // Get budget allocations from AI analysis
+      const allocations = aiBudgetIntegration.getBudgetAllocations(aiAnalysis);
+
+      // Map allocations to user-specific debt names and goal titles
+      const mappedAllocations = aiBudgetIntegration.mapAllocationsToUserCategories(
+        allocations, 
+        debts.filter(d => d.isActive), 
+        goals.filter(g => g.isActive)
+      );
+
+      // Convert allocations to amounts format and store explanations
+      const newAmounts: { [key: string]: number } = {};
+      const newExplanations: { [key: string]: string } = {};
+      
+      console.log('🔄 Processing mapped allocations (existing analysis):', mappedAllocations);
+      
+      mappedAllocations.forEach(alloc => {
+        // If amount is 0, calculate it from percentage and income
+        const amount = alloc.amount > 0 ? alloc.amount : (income * alloc.percentage / 100);
+        newAmounts[alloc.category] = amount;
+        newExplanations[alloc.category] = alloc.description;
+        console.log(`💰 Setting ${alloc.category}: £${amount} (${alloc.percentage}%)`);
+      });
+
+      console.log('📊 Final newAmounts object (existing analysis):', newAmounts);
+      console.log('📊 Final newExplanations object (existing analysis):', newExplanations);
+
+      // Update the amounts state and AI explanations
+      setAmounts(newAmounts);
+      setAiExplanations(newExplanations);
+      setShowAiExplanations(true);
+
+      // Debug: Log the current amounts state after update
+      console.log('🔍 Current amounts state after update (existing analysis):', newAmounts);
+      console.log('🔍 Current AI explanations state after update (existing analysis):', newExplanations);
+
+      toast({
+        title: "Budget Auto-Allocated!",
+        description: `AI has allocated £${mappedAllocations.reduce((sum, alloc) => {
+          const amount = alloc.amount > 0 ? alloc.amount : (income * alloc.percentage / 100);
+          return sum + amount;
+        }, 0).toFixed(2)} across ${mappedAllocations.length} categories. Review and save when ready.`,
+      });
+
+    } catch (error: unknown) {
+      console.error("Error auto-allocating budget:", error);
+      toast({
+        title: "Error",
+        description: "Failed to auto-allocate budget. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Helper function to show fallback allocations when no AI analysis exists
+  const showFallbackAllocation = () => {
+    try {
+      // Import the AI budget integration service for fallback
+      import('@/lib/services/ai-budget-integration').then(({ aiBudgetIntegration }) => {
+        // Create a minimal AI analysis object for fallback that matches AIAnalysisData interface
+        const fallbackAnalysis = {
+          summary: "Using standard budget allocation guidelines",
+          priorities: [
+            { 
+              rank: 1, 
+              category: "Emergency Fund", 
+              reason: "Building financial safety net", 
+              action: "Standard allocation" 
+            }
+          ],
+          budgetDistribution: {
+            emergencyFund: { percentage: 20, amount: income * 0.2, description: "Standard emergency fund allocation" },
+            debtPayoff: { percentage: 0, amount: 0, description: "No debt to pay off" },
+            essentialExpenses: { percentage: 50, amount: income * 0.5, description: "Standard essential expenses allocation" },
+            savingsInvestments: { percentage: 20, amount: income * 0.2, description: "Standard savings allocation" },
+            discretionarySpending: { percentage: 10, amount: income * 0.1, description: "Standard discretionary spending allocation" }
+          },
+          riskAssessment: {
+            level: "Moderate",
+            factors: ["Standard allocation", "Conservative approach"],
+            mitigation: "Follow standard 50/30/20 rule"
+          },
+          timeline: {
+            emergencyFund: "6 months",
+            debtElimination: "N/A",
+            investmentGrowth: "Long-term",
+            retirementReadiness: "Long-term"
+          },
+          progressMetrics: ["Emergency fund building", "Regular savings"],
+          recommendations: ["Complete AI questionnaire for personalized recommendations"],
+          budgetAllocations: [],
+          autoAllocationRules: [
+            {
+              category: "Emergency Fund",
+              rule: "Allocate 20% of income until 6-month emergency fund is built",
+              priority: 1
+            },
+            {
+              category: "Essential Expenses",
+              rule: "Allocate 50% of income to housing, transport, food, and utilities",
+              priority: 2
+            },
+            {
+              category: "Savings & Investments",
+              rule: "Allocate 20% of income to savings and long-term goals",
+              priority: 3
+            },
+            {
+              category: "Discretionary Spending",
+              rule: "Allocate 10% of income to entertainment and personal expenses",
+              priority: 4
+            }
+          ]
+        };
+
+        // Generate fallback allocations
+        const allocations = aiBudgetIntegration.getBudgetAllocations(fallbackAnalysis);
+        
+        // Map allocations to user-specific debt names and goal titles
+        const mappedAllocations = aiBudgetIntegration.mapAllocationsToUserCategories(
+          allocations, 
+          debts.filter(d => d.isActive), 
+          goals.filter(g => g.isActive)
+        );
+        
+        // Convert allocations to amounts format and store explanations
+        const newAmounts: { [key: string]: number } = {};
+        const newExplanations: { [key: string]: string } = {};
+        
+        console.log('🔄 Processing fallback allocations:', mappedAllocations);
+        
+        mappedAllocations.forEach(alloc => {
+          // If amount is 0, calculate it from percentage and income
+          const amount = alloc.amount > 0 ? alloc.amount : (income * alloc.percentage / 100);
+          newAmounts[alloc.category] = amount;
+          newExplanations[alloc.category] = alloc.description;
+          console.log(`💰 Setting fallback ${alloc.category}: £${amount} (${alloc.percentage}%)`);
+        });
+
+        console.log('📊 Final fallback newAmounts object:', newAmounts);
+        console.log('📊 Final fallback newExplanations object:', newExplanations);
+
+        // Update the amounts state and AI explanations
+        setAmounts(newAmounts);
+        setAiExplanations(newExplanations);
+        setShowAiExplanations(true);
+
+        // Debug: Log the current amounts state
+        console.log('🔍 Current amounts state after fallback update:', newAmounts);
+        console.log('🔍 Current AI explanations state after fallback update:', newExplanations);
+
+        toast({
+          title: "Default Allocations Applied",
+          description: `Standard budget allocations applied. Review and save when ready. Complete the AI questionnaire for personalized recommendations!`,
+        });
+      });
+    } catch (error) {
+      console.error("Error applying fallback allocations:", error);
+      toast({
+        title: "Error",
+        description: "Failed to apply default allocations. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="container mx-auto px-3 sm:px-6 py-4 sm:py-8">
       <motion.div
@@ -630,10 +961,40 @@ export default function BudgetForm() {
                   </Select>
                 </div>
 
-                {/* Step 1.5: Template Selection */}
+                {/* Step 1.5: AI Auto Allocate */}
                 {selectedMonth && (
-                                  <div className="space-y-3">
-                  <Label className="text-sm sm:text-base font-semibold">Step 1.5: Load Template (Optional)</Label>
+                  <div className="space-y-3">
+                    <Label className="text-sm sm:text-base font-semibold">Step 1.5: AI Auto Allocate (Optional)</Label>
+                    <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <Brain className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="font-medium text-blue-800 text-sm sm:text-base">AI Budgeting Assistant</span>
+                            <Badge variant="secondary" className="text-xs">Recommended</Badge>
+                          </div>
+                                           <p className="text-xs sm:text-sm text-blue-700 mb-3">
+                   Get personalized budget allocations based on your financial situation, goals, and preferences. 
+                   Review the allocations and save when ready.
+                 </p>
+                 <Button
+                   onClick={handleAutoAllocate}
+                   disabled={!income || income <= 0}
+                   className="bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 hover:from-blue-600 hover:to-purple-700 text-xs sm:text-sm"
+                 >
+                   <Brain className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                   AI Auto Allocate
+                 </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 1.6: Template Selection */}
+                {selectedMonth && (
+                  <div className="space-y-3">
+                    <Label className="text-sm sm:text-base font-semibold">Step 1.6: Load Template (Optional)</Label>
                     <TemplateSelector onTemplateSelect={handleTemplateSelect} />
                   </div>
                 )}
@@ -1211,10 +1572,23 @@ export default function BudgetForm() {
              {/* Budget Breakdown Card */}
              <Card>
                <CardHeader>
-                 <CardTitle className="flex items-center gap-2">
-                   <Target className="h-5 w-5" />
-                   Budget Breakdown
-                 </CardTitle>
+                 <div className="flex items-center justify-between">
+                   <CardTitle className="flex items-center gap-2">
+                     <Target className="h-5 w-5" />
+                     Budget Breakdown
+                   </CardTitle>
+                   {Object.keys(aiExplanations).length > 0 && (
+                     <Button
+                       variant="outline"
+                       size="sm"
+                       onClick={() => setShowAiExplanations(!showAiExplanations)}
+                       className="text-xs"
+                     >
+                       <Brain className="h-3 w-3 mr-1" />
+                       {showAiExplanations ? 'Hide AI Explanations' : 'Show AI Explanations'}
+                     </Button>
+                   )}
+                 </div>
                </CardHeader>
                <CardContent className="space-y-4">
                  {Object.entries(amounts)
@@ -1224,6 +1598,7 @@ export default function BudgetForm() {
                      const percentage = income > 0 ? (amount / income) * 100 : 0;
                      const isDebt = debts.some(d => d.name === category);
                      const isGoal = goals.some(g => g.title === category && g.isActive);
+                     const aiExplanation = aiExplanations[category];
                      
                      return (
                        <div key={category} className="space-y-2">
@@ -1245,9 +1620,20 @@ export default function BudgetForm() {
                            <span>{percentage.toFixed(1)}% of income</span>
                            <span>£{amount.toFixed(2)}</span>
                          </div>
+                         {showAiExplanations && aiExplanation && (
+                           <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 rounded-lg">
+                             <div className="flex items-start gap-2">
+                               <Brain className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                               <div className="text-sm">
+                                 <p className="font-medium text-blue-800 dark:text-blue-200 mb-1">AI Reasoning:</p>
+                                 <p className="text-blue-700 dark:text-blue-300 text-xs leading-relaxed">{aiExplanation}</p>
+                               </div>
+                             </div>
+                           </div>
+                         )}
                        </div>
-          );
-        })}
+                     );
+                   })}
 
                  {Object.entries(amounts).filter(([, amount]) => amount > 0).length === 0 && (
                    <div className="text-center py-8 text-muted-foreground">
@@ -1263,43 +1649,49 @@ export default function BudgetForm() {
       </motion.div>
 
       {/* Action Buttons */}
-      <motion.div variants={itemVariants} className="mt-6 sm:mt-8 flex flex-col sm:flex-row justify-end gap-3 sm:gap-4">
-        <Button
-          onClick={() => setSaveTemplateModalOpen(true)}
-          variant="outline"
-          disabled={Object.keys(amounts).length === 0}
-          className="text-xs sm:text-sm"
-        >
-          <Bookmark className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-          Save as Template
-        </Button>
-        <Button
-          onClick={handleResetToPrevious}
-          variant="outline"
-          disabled={!previousBudget}
-          className="text-xs sm:text-sm"
-        >
-          <RotateCcw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-          Reset to Previous
-        </Button>
-        <div className="flex flex-col items-end gap-1">
+      <motion.div variants={itemVariants} className="mt-6 sm:mt-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
           <Button
-            onClick={handleSaveBudget}
-            disabled={!selectedMonth || (!!currentBudget && !isEditing) || budgetSaved || remaining > 0}
-            className={cn(
-              "bg-primary hover:bg-primary/90 text-xs sm:text-sm",
-              remaining < 0 && !isZero(remaining) && "bg-amber-600 hover:bg-amber-700",
-              budgetSaved && "bg-green-600 hover:bg-green-700 cursor-not-allowed"
-            )}
+            onClick={() => setSaveTemplateModalOpen(true)}
+            variant="outline"
+            disabled={Object.keys(amounts).length === 0}
+            className="text-xs sm:text-sm"
           >
-            <Save className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-            {budgetSaved ? "Budget Saved" : 
-             remaining > 0 ? "Allocate Remaining £" + remaining.toFixed(2) :
-             (currentBudget && isEditing ? "Update Budget" : "Save Budget")}
+            <Bookmark className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+            Save as Template
           </Button>
-          <p className="text-xs text-muted-foreground">
-            {totalAllocated > 0 ? `£${totalAllocated.toFixed(2)} allocated` : "No allocations"}
-          </p>
+          <Button
+            onClick={handleResetToPrevious}
+            variant="outline"
+            disabled={!previousBudget}
+            className="text-xs sm:text-sm"
+          >
+            <RotateCcw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+            Reset to Previous
+          </Button>
+        </div>
+        
+        {/* Save Budget Button */}
+        <div className="flex justify-end">
+          <div className="flex flex-col items-end gap-1">
+            <Button
+              onClick={handleSaveBudget}
+              disabled={!selectedMonth || (!!currentBudget && !isEditing) || budgetSaved || remaining > 0}
+              className={cn(
+                "bg-primary hover:bg-primary/90 text-xs sm:text-sm",
+                remaining < 0 && !isZero(remaining) && "bg-amber-600 hover:bg-amber-700",
+                budgetSaved && "bg-green-600 hover:bg-green-700 cursor-not-allowed"
+              )}
+            >
+              <Save className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              {budgetSaved ? "Budget Saved" : 
+               remaining > 0 ? "Allocate Remaining £" + remaining.toFixed(2) :
+               (currentBudget && isEditing ? "Update Budget" : "Save Budget")}
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              {totalAllocated > 0 ? `£${totalAllocated.toFixed(2)} allocated` : "No allocations"}
+            </p>
+          </div>
         </div>
       </motion.div>
 
