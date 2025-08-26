@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { FileText, Search, Trash2, Calendar, Building2, PoundSterling, BarChart3 } from "lucide-react";
+import { FileText, Search, Trash2, Building2, BarChart3, AlertTriangle, RefreshCw, CheckCircle } from "lucide-react";
 import { useBankStatementStore, BankStatement } from "@/app/lib/bankStatementStore";
 import { useBankStatementAnalysisStore } from "@/app/lib/bankStatementAnalysisStore";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,11 @@ export default function BankStatementList() {
   const loadStatements = useBankStatementStore((state) => state.loadStatements);
   const isLoading = useBankStatementStore((state) => state.isLoading);
   const statementAnalyses = useBankStatementAnalysisStore((state) => state.statementAnalyses);
+  
+  // Local state for deletion
+  const [deletingStatementId, setDeletingStatementId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
   
   // Debug logging
   console.log('📊 BankStatementList - Current statements:', statements);
@@ -43,6 +48,28 @@ export default function BankStatementList() {
     
     loadData();
   }, [loadStatements]);
+
+  // Clear selected statement if it no longer exists in statements array
+  useEffect(() => {
+    if (selectedStatement && !statements.some(s => s.id === selectedStatement.id)) {
+      setSelectedStatement(null);
+    }
+  }, [statements, selectedStatement]);
+
+  // Check for duplicates and show warning
+  const duplicateGroups = new Map();
+  statements.forEach(statement => {
+    const key = `${statement.fileName}|${statement.bank}|${statement.accountType}`;
+    if (!duplicateGroups.has(key)) {
+      duplicateGroups.set(key, []);
+    }
+    duplicateGroups.get(key).push(statement);
+  });
+  
+  const hasDuplicates = Array.from(duplicateGroups.values()).some(group => group.length > 1);
+  const duplicateCount = Array.from(duplicateGroups.values())
+    .filter(group => group.length > 1)
+    .reduce((total, group) => total + group.length - 1, 0);
 
   const filteredStatements = statements.filter((statement) => {
     const matchesSearch = 
@@ -81,17 +108,7 @@ export default function BankStatementList() {
     });
   };
 
-  const getCategoryBreakdown = (statement: BankStatement) => {
-    const breakdown = statement.transactions.reduce((acc, transaction) => {
-      acc[transaction.category] = (acc[transaction.category] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
 
-    return Object.entries(breakdown).map(([category, count]) => ({
-      category,
-      count,
-    }));
-  };
 
   const getStatementPeriod = (statement: BankStatement) => {
     if (statement.transactions.length === 0) return "No transactions";
@@ -135,17 +152,79 @@ export default function BankStatementList() {
 
   return (
     <div className="space-y-6">
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search statements..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
+              {/* Error Display */}
+        {deleteError && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              <div>
+                <h4 className="font-medium text-red-800">Delete Failed</h4>
+                <p className="text-sm text-red-700">{deleteError}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {deleteSuccess && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+            <div className="flex items-center space-x-2">
+              <CheckCircle className="h-5 w-5 text-green-500" />
+              <div>
+                <h4 className="font-medium text-green-800">Statement Deleted</h4>
+                <p className="text-sm text-green-700">{deleteSuccess}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Duplicate Warning */}
+        {hasDuplicates && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="h-5 w-5 text-yellow-500" />
+              <div>
+                <h4 className="font-medium text-yellow-800">Duplicate Statements Detected</h4>
+                <p className="text-sm text-yellow-700">
+                  Found {duplicateCount} duplicate statement{duplicateCount !== 1 ? 's' : ''}. 
+                  Duplicate statements are marked with a red "Duplicate" badge and can be deleted individually.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+                {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search statements..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          
+          <Button
+            onClick={async () => {
+              try {
+                console.log('🔄 Manually refreshing statements from Firebase...');
+                await loadStatements();
+                console.log('✅ Statements refreshed successfully');
+              } catch (error) {
+                console.error('❌ Failed to refresh statements:', error);
+                setDeleteError('Failed to refresh statements from database');
+                setTimeout(() => setDeleteError(null), 5000);
+              }
+            }}
+            variant="outline"
+            size="sm"
+            disabled={isLoading}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         
         <Select value={bankFilter} onValueChange={setBankFilter}>
           <SelectTrigger className="w-full sm:w-48">
@@ -192,6 +271,27 @@ export default function BankStatementList() {
                         <Building2 className="h-5 w-5 text-primary" />
                         <h3 className="font-semibold text-lg">{statement.bank}</h3>
                         <Badge variant="secondary">{statement.accountType || "Current Account"}</Badge>
+                        {/* Duplicate Indicator */}
+                        {(() => {
+                          const duplicateGroup = Array.from(duplicateGroups.values()).find(group => 
+                            group.some((s: BankStatement) => s.id === statement.id)
+                          );
+                          if (duplicateGroup && duplicateGroup.length > 1) {
+                            // Check if this statement is a duplicate (not the first one)
+                            const isDuplicate = duplicateGroup[0].id !== statement.id;
+                            if (isDuplicate) {
+                              return (
+                                <Badge 
+                                  variant="destructive"
+                                  className="ml-2"
+                                >
+                                  Duplicate
+                                </Badge>
+                              );
+                            }
+                          }
+                          return null;
+                        })()}
                       </div>
                       
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -272,16 +372,49 @@ export default function BankStatementList() {
                           <AlertDialogAction 
                             onClick={async () => {
                               try {
+                                setDeletingStatementId(statement.id);
+                                setDeleteError(null);
+                                setDeleteSuccess(null); // Clear success message
+                                
+                                console.log('🗑️ Starting deletion of statement:', statement.id);
+                                
+                                // Delete the specific statement
                                 await deleteStatement(statement.id);
+                                
                                 console.log('✅ Statement deleted successfully');
+                                
+                                // Clear the selected statement if it was the one being deleted
+                                if (selectedStatement && selectedStatement.id === statement.id) {
+                                  setSelectedStatement(null);
+                                }
+                                
+                                // Show success message briefly
+                                setDeleteSuccess(`Statement for ${statement.bank} deleted successfully.`);
+                                setTimeout(() => {
+                                  setDeleteSuccess(null);
+                                }, 3000);
+                                
                               } catch (error) {
                                 console.error('❌ Failed to delete statement:', error);
-                                // You could add a toast notification here
+                                setDeleteError(error instanceof Error ? error.message : 'Failed to delete statement');
+                                
+                                // Show error for 5 seconds
+                                setTimeout(() => setDeleteError(null), 5000);
+                              } finally {
+                                setDeletingStatementId(null);
                               }
                             }}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            disabled={deletingStatementId === statement.id}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
                           >
-                            Delete
+                            {deletingStatementId === statement.id ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                Deleting...
+                              </>
+                            ) : (
+                              'Delete'
+                            )}
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
@@ -306,7 +439,12 @@ export default function BankStatementList() {
           <CardContent className="pt-6">
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium text-muted-foreground">
-                Showing {filteredStatements.length} of {statements.length} statements
+                Showing {filteredStatements.length} statement{filteredStatements.length !== 1 ? 's' : ''}
+                {hasDuplicates && (
+                  <span className="text-yellow-600 ml-2">
+                    ({duplicateCount} duplicate{duplicateCount !== 1 ? 's' : ''} detected)
+                  </span>
+                )}
               </span>
               <span className="font-semibold">
                 Total: £{filteredStatements.reduce((sum, statement) => sum + statement.totalDebits, 0).toFixed(2)}
@@ -317,7 +455,7 @@ export default function BankStatementList() {
       )}
 
       {/* Transaction View Modal */}
-      {selectedStatement && (
+      {selectedStatement && statements.some(s => s.id === selectedStatement.id) && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
@@ -355,7 +493,7 @@ export default function BankStatementList() {
             
             <div className="p-6">
               <div className="space-y-4">
-                {selectedStatement.transactions.map((transaction, index) => (
+                {selectedStatement.transactions.map((transaction) => (
                   <div key={transaction.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div className="flex-1">
                       <p className="font-medium">{transaction.description}</p>

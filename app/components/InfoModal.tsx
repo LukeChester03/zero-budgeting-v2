@@ -3,7 +3,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Building2, AlertCircle, TrendingUp, Target, PiggyBank, CreditCard } from "lucide-react";
+import { Shield, Building2, AlertCircle, TrendingUp, Target, PiggyBank, CreditCard, Brain } from "lucide-react";
 
 type Props = {
   open: boolean;
@@ -171,6 +171,31 @@ export default function InfoModal({ open, category, onClose }: Props) {
             "Build emergency fund alongside debt repayment to avoid new debt"
           ]
         };
+      case "AI":
+        return {
+          title: "AI Auto Allocate",
+          icon: <Brain className="h-6 w-6 text-purple-600" />,
+          description: "Your personal financial assistant that helps you optimize your spending and savings based on your goals and preferences.",
+          details: [
+            {
+              title: "What it does",
+              content: "Analyzes your spending patterns, income, and financial goals to automatically allocate your money across different categories for optimal growth and security."
+            },
+            {
+              title: "How it works",
+              content: "You set your financial goals (e.g., emergency fund, retirement, investments), and the AI learns from your historical data to make smart decisions."
+            },
+            {
+              title: "Why it's powerful",
+              content: "It takes the guesswork out of budgeting and investing, ensuring you're on track to achieve your financial objectives without constant monitoring."
+            }
+          ],
+          tips: [
+            "Set clear financial goals first",
+            "Provide accurate historical data for the AI to learn from",
+            "Regularly review and adjust your AI's allocations as your financial situation changes"
+          ]
+        };
       default:
         return null;
     }
@@ -232,10 +257,10 @@ export default function InfoModal({ open, category, onClose }: Props) {
           <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg">
             <AlertCircle className="h-4 w-4 text-blue-600" />
             <span className="text-sm font-medium text-blue-800">
-              Priority: {category === "Emergency Fund" ? "Critical" : category === "Safety Net" ? "High" : category === "Investments" ? "Medium" : category === "Savings" ? "Strategic" : category === "Debts" ? "Urgent" : "Important"}
+              Priority: {category === "Emergency Fund" ? "Critical" : category === "Safety Net" ? "High" : category === "Investments" ? "Medium" : category === "Savings" ? "Strategic" : category === "Debts" ? "Urgent" : category === "AI" ? "High" : "Important"}
             </span>
             <Badge variant="outline" className="ml-auto">
-              {category === "Emergency Fund" ? "Critical" : category === "Safety Net" ? "Essential" : category === "Investments" ? "Growth" : category === "Savings" ? "Strategy" : category === "Debts" ? "Eliminate" : "Important"}
+              {category === "Emergency Fund" ? "Critical" : category === "Safety Net" ? "Essential" : category === "Investments" ? "Growth" : category === "Savings" ? "Strategy" : category === "Debts" ? "Eliminate" : category === "AI" ? "High" : "Important"}
             </Badge>
           </div>
         </div>

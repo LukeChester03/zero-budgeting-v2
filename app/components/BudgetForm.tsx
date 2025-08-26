@@ -47,6 +47,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { DollarSign } from "lucide-react";
 
+
 // Category icons mapping
 const CATEGORY_ICONS: { [key: string]: React.ReactNode } = {
   "Housing": <Home className="h-4 w-4" />,
@@ -635,184 +636,130 @@ export default function BudgetForm() {
       // Show loading state
       toast({
         title: "AI Allocation in Progress",
-        description: "Generating personalized budget allocations...",
+        description: "Fetching your personalized budget allocations...",
       });
 
-      // Import the AI budget integration service
-      const { aiBudgetIntegration } = await import('@/lib/services/ai-budget-integration');
-      
-      // Get user's AI analysis from Firebase
+      // Import the AI service to get pre-determined allocations
       const { AIService } = await import('@/lib/services/ai-service');
-      const existingAnalysis = await AIService.getExistingAnalysis(user.uid);
       
-      console.log('🔍 Existing analysis result:', existingAnalysis);
-      console.log('📊 Has aiAnalysis field:', !!existingAnalysis?.aiAnalysis);
-      console.log('📄 aiAnalysis content:', existingAnalysis?.aiAnalysis);
+      // Get existing debt and goal data for AI consideration
+      const activeDebts = debts.filter(d => d.isActive).map(d => ({
+        name: d.name,
+        monthlyRepayment: d.monthlyRepayment
+      }));
       
-      if (!existingAnalysis) {
-        // No analysis document exists - user needs to complete questionnaire
+      const activeGoals = goals.filter(g => g.isActive).map(g => ({
+        title: g.title,
+        monthlyContribution: g.monthlyContribution
+      }));
+      
+      console.log('💳 Active debts for AI consideration:', activeDebts);
+      console.log('🎯 Active goals for AI consideration:', activeGoals);
+      
+      // Get pre-determined allocations from existing AI analysis
+      const result = await AIService.getPreDeterminedAllocations(
+        user.uid, 
+        income, 
+        activeDebts, 
+        activeGoals
+      );
+      
+      if (!result.success || !result.allocations) {
+        // No pre-determined allocations available - user needs to complete questionnaire
         toast({
-          title: "AI Analysis Required",
-          description: "Complete the AI questionnaire to get personalized budget allocations!",
+          title: "AI Questionnaire Required",
+          description: result.guidance || "Complete the AI questionnaire to get personalized budget allocations!",
           action: (
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={() => {
-                  toast({
-                    title: "How to Access AI Assistant",
-                    description: "Go to the main menu and click 'AI Budgeting Assistant' to complete the questionnaire.",
-                  });
-                }}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                Open AI Assistant
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  showFallbackAllocation();
-                }}
-              >
-                Use Default Allocations
-              </Button>
+            <div className="flex flex-col gap-2 w-full">
+              <div className="text-sm text-muted-foreground mb-2">
+                {result.error === 'AI questionnaire not completed' 
+                  ? "You haven't completed the AI questionnaire yet. This will help us understand your financial situation and create personalized budget allocations."
+                  : result.error === 'AI analysis incomplete'
+                  ? "Your AI questionnaire appears to be incomplete. Please complete it to get personalized budget allocations."
+                  : "Complete the AI questionnaire to get personalized budget allocations based on your financial situation, goals, and preferences."
+                }
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    // Navigate to home page and automatically open AI modal
+                    router.push('/?openAI=true');
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
+                >
+                  <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  Complete AI Questionnaire
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    showFallbackAllocation();
+                  }}
+                  className="flex-1"
+                >
+                  Use Default Allocations
+                </Button>
+              </div>
             </div>
           ),
         });
         return;
       }
 
-      // Check if aiAnalysis is empty or incomplete
-      if (!existingAnalysis.aiAnalysis || existingAnalysis.aiAnalysis.trim().length === 0) {
-        // Analysis exists but is empty - regenerate it
-        console.log('⚠️ Existing analysis is empty, regenerating...');
-        
-        try {
-          // Update preferences first
-          await AIService.updatePreferences(existingAnalysis.id, {
-            preferences: existingAnalysis.preferences,
-            updatedAt: new Date().toISOString()
-          });
-          
-          // Generate new analysis using the stored preferences
-          const response = await AIService.generateBudgetAnalysis(
-            existingAnalysis.preferences, 
-            income
-          );
-          
-          if (response.success && response.data) {
-            // Update the document with the new analysis
-            await AIService.updatePreferences(existingAnalysis.id, {
-              aiAnalysis: JSON.stringify(response.data),
-              updatedAt: new Date().toISOString()
-            });
-            
-            console.log('✅ New analysis generated and saved');
-            
-            // Use the new analysis for allocations
-            const aiAnalysis = response.data;
-            
-            // Get budget allocations from AI analysis
-            const allocations = aiBudgetIntegration.getBudgetAllocations(aiAnalysis);
-
-            // Map allocations to user-specific debt names and goal titles
-            const mappedAllocations = aiBudgetIntegration.mapAllocationsToUserCategories(
-              allocations, 
-              debts.filter(d => d.isActive), 
-              goals.filter(g => g.isActive)
-            );
-
-            // Convert allocations to amounts format and store explanations
-            const newAmounts: { [key: string]: number } = {};
-            const newExplanations: { [key: string]: string } = {};
-            
-            mappedAllocations.forEach(alloc => {
-              // If amount is 0, calculate it from percentage and income
-              const amount = alloc.amount > 0 ? alloc.amount : (income * alloc.percentage / 100);
-              newAmounts[alloc.category] = amount;
-              newExplanations[alloc.category] = alloc.description;
-            });
-
-            // Update the amounts state and AI explanations
-            setAmounts(newAmounts);
-            setAiExplanations(newExplanations);
-            setShowAiExplanations(true);
-
-            toast({
-              title: "Budget Auto-Allocated!",
-              description: `AI has allocated £${mappedAllocations.reduce((sum, alloc) => {
-                const amount = alloc.amount > 0 ? alloc.amount : (income * alloc.percentage / 100);
-                return sum + amount;
-              }, 0).toFixed(2)} across ${mappedAllocations.length} categories. Review and save when ready.`,
-            });
-            
-            return;
-          } else {
-            throw new Error(response.error || 'Failed to generate analysis');
-          }
-        } catch (error) {
-          console.error('Error regenerating analysis:', error);
-          toast({
-            title: "Analysis Generation Failed",
-            description: "Failed to regenerate AI analysis. Please try completing the questionnaire again.",
-            variant: "destructive",
-          });
-          return;
-        }
-      }
-
-      // Parse the existing AI analysis
-      const aiAnalysis = JSON.parse(existingAnalysis.aiAnalysis);
-      
-      // Get budget allocations from AI analysis
-      const allocations = aiBudgetIntegration.getBudgetAllocations(aiAnalysis);
-
-      // Map allocations to user-specific debt names and goal titles
-      const mappedAllocations = aiBudgetIntegration.mapAllocationsToUserCategories(
-        allocations, 
-        debts.filter(d => d.isActive), 
-        goals.filter(g => g.isActive)
-      );
+      console.log('✅ Pre-determined allocations fetched successfully:', result.allocations);
 
       // Convert allocations to amounts format and store explanations
       const newAmounts: { [key: string]: number } = {};
       const newExplanations: { [key: string]: string } = {};
       
-      console.log('🔄 Processing mapped allocations (existing analysis):', mappedAllocations);
+      // First, add debt allocations if they exist
+      if (result.debtAllocations && result.debtAllocations.length > 0) {
+        result.debtAllocations.forEach(debtAlloc => {
+          newAmounts[debtAlloc.category] = debtAlloc.amount;
+          newExplanations[debtAlloc.category] = debtAlloc.description;
+          console.log(`💳 Setting debt allocation: ${debtAlloc.category} = £${debtAlloc.amount}`);
+        });
+      }
       
-      mappedAllocations.forEach(alloc => {
-        // If amount is 0, calculate it from percentage and income
+      // Then, add goal allocations if they exist
+      if (result.goalAllocations && result.goalAllocations.length > 0) {
+        result.goalAllocations.forEach(goalAlloc => {
+          newAmounts[goalAlloc.category] = goalAlloc.amount;
+          newExplanations[goalAlloc.category] = goalAlloc.description;
+          console.log(`🎯 Setting goal allocation: ${goalAlloc.category} = £${goalAlloc.amount}`);
+        });
+      }
+      
+      // Finally, add AI-generated allocations
+      result.allocations.forEach(alloc => {
+        // Calculate amount from percentage if not provided
         const amount = alloc.amount > 0 ? alloc.amount : (income * alloc.percentage / 100);
         newAmounts[alloc.category] = amount;
         newExplanations[alloc.category] = alloc.description;
-        console.log(`💰 Setting ${alloc.category}: £${amount} (${alloc.percentage}%)`);
+        console.log(`💰 Setting AI allocation: ${alloc.category}: £${amount} (${alloc.percentage}%)`);
       });
 
-      console.log('📊 Final newAmounts object (existing analysis):', newAmounts);
-      console.log('📊 Final newExplanations object (existing analysis):', newExplanations);
+      console.log('📊 Final newAmounts object:', newAmounts);
+      console.log('📊 Final newExplanations object:', newExplanations);
 
       // Update the amounts state and AI explanations
       setAmounts(newAmounts);
       setAiExplanations(newExplanations);
       setShowAiExplanations(true);
 
-      // Debug: Log the current amounts state after update
-      console.log('🔍 Current amounts state after update (existing analysis):', newAmounts);
-      console.log('🔍 Current AI explanations state after update (existing analysis):', newExplanations);
-
       toast({
         title: "Budget Auto-Allocated!",
-        description: `AI has allocated £${mappedAllocations.reduce((sum, alloc) => {
-          const amount = alloc.amount > 0 ? alloc.amount : (income * alloc.percentage / 100);
-          return sum + amount;
-        }, 0).toFixed(2)} across ${mappedAllocations.length} categories. Review and save when ready.`,
+        description: `AI has allocated £${Object.values(newAmounts).reduce((sum, amount) => sum + amount, 0).toFixed(2)} across ${Object.keys(newAmounts).length} categories. Review and save when ready.`,
       });
 
-    } catch (error: unknown) {
+    } catch (error) {
       console.error("Error auto-allocating budget:", error);
       toast({
-        title: "Error",
+        title: "Auto-Allocation Failed",
         description: "Failed to auto-allocate budget. Please try again.",
         variant: "destructive",
       });
@@ -883,12 +830,12 @@ export default function BudgetForm() {
         // Generate fallback allocations
         const allocations = aiBudgetIntegration.getBudgetAllocations(fallbackAnalysis);
         
-        // Map allocations to user-specific debt names and goal titles
-        const mappedAllocations = aiBudgetIntegration.mapAllocationsToUserCategories(
-          allocations, 
-          debts.filter(d => d.isActive), 
-          goals.filter(g => g.isActive)
-        );
+              // Map allocations to user-specific debt names and goal titles
+      const mappedAllocations = aiBudgetIntegration.mapAllocationsToUserCategories(
+        allocations, 
+        debts.filter(d => d.isActive).map(d => ({ name: d.name, amount: d.totalAmount, monthlyRepayment: d.monthlyRepayment })), 
+        goals.filter(g => g.isActive).map(g => ({ title: g.title, targetAmount: g.target, monthlyContribution: g.monthlyContribution, name: g.title }))
+      );
         
         // Convert allocations to amounts format and store explanations
         const newAmounts: { [key: string]: number } = {};
@@ -962,34 +909,36 @@ export default function BudgetForm() {
                 </div>
 
                 {/* Step 1.5: AI Auto Allocate */}
-                {selectedMonth && (
-                  <div className="space-y-3">
+                <motion.div variants={itemVariants} className="mb-8">
+                  <div className="flex items-center gap-2 mb-4">
                     <Label className="text-sm sm:text-base font-semibold">Step 1.5: AI Auto Allocate (Optional)</Label>
-                    <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg">
-                      <div className="flex items-start gap-3">
-                        <Brain className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="font-medium text-blue-800 text-sm sm:text-base">AI Budgeting Assistant</span>
-                            <Badge variant="secondary" className="text-xs">Recommended</Badge>
-                          </div>
-                                           <p className="text-xs sm:text-sm text-blue-700 mb-3">
-                   Get personalized budget allocations based on your financial situation, goals, and preferences. 
-                   Review the allocations and save when ready.
-                 </p>
-                 <Button
-                   onClick={handleAutoAllocate}
-                   disabled={!income || income <= 0}
-                   className="bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 hover:from-blue-600 hover:to-purple-700 text-xs sm:text-sm"
-                 >
-                   <Brain className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                   AI Auto Allocate
-                 </Button>
-                        </div>
-                      </div>
-                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleOpenInfoModal("AI")}
+                      className="h-4 w-4 p-0 text-muted-foreground hover:text-primary"
+                    >
+                      <HelpCircle className="h-3 w-3" />
+                    </Button>
                   </div>
-                )}
+                  
+                  
+                  
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button
+                      type="button"
+                      onClick={handleAutoAllocate}
+                      disabled={!user || !selectedMonth || !income || income <= 0}
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 flex-1"
+                    >
+                      <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                      </svg>
+                      AI Auto Allocate
+                    </Button>
+                  </div>
+                </motion.div>
 
                 {/* Step 1.6: Template Selection */}
                 {selectedMonth && (

@@ -16,13 +16,12 @@ import {
   Target, 
   Lightbulb,
   AlertTriangle,
-  CheckCircle,
+
   DollarSign,
   Calendar,
   Users,
-  Building2,
-  ArrowUpRight,
-  ArrowDownRight,
+
+
   X,
   FileText
 } from "lucide-react";
@@ -61,11 +60,7 @@ export default function OverallAnalysisDisplay({ analysis, onClose }: OverallAna
     }
   };
 
-  const getHealthColor = (score: number) => {
-    if (score >= 80) return "text-green-600";
-    if (score >= 60) return "text-yellow-600";
-    return "text-red-600";
-  };
+
 
   return (
     <motion.div

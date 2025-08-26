@@ -6,11 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
+
 import {
   TrendingUp,
   TrendingDown,
-  Minus,
+
   BarChart3,
   PieChart,
   Target,
@@ -19,11 +19,10 @@ import {
   CheckCircle,
   DollarSign,
   Calendar,
-  Users,
-  Building2,
-  ArrowUpRight,
-  ArrowDownRight,
-  X,
+
+      Building2,
+    ArrowUpRight,
+    X,
   FileText,
   CreditCard,
   PiggyBank,

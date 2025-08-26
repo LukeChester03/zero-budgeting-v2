@@ -25,7 +25,7 @@ export interface AIBudgetIntegration {
   /**
    * Validate AI budget allocations
    */
-  validateAllocations: (allocations: BudgetAllocation[], monthlyIncome: number, existingDebts?: any[], existingGoals?: any[]) => boolean;
+  validateAllocations: (allocations: BudgetAllocation[], monthlyIncome: number, existingDebts?: Array<{name: string; amount: number}>, existingGoals?: Array<{title: string; targetAmount: number}>) => boolean;
 
   /**
    * Convert AI categories to budget template categories
@@ -43,8 +43,8 @@ export interface AIBudgetIntegration {
     aiAnalysis: AIAnalysisData, 
     monthlyIncome: number, 
     pastBudgets: Budget[], 
-    existingDebts: any[], 
-    existingGoals: any[]
+    existingDebts: Array<{name: string; amount: number; monthlyRepayment?: number}>, 
+    existingGoals: Array<{title: string; targetAmount: number; monthlyContribution?: number; name?: string}>
   ) => Promise<BudgetAllocation[]>;
 }
 
@@ -57,8 +57,8 @@ export class AIBudgetIntegrationService implements AIBudgetIntegration {
     aiAnalysis: AIAnalysisData, 
     monthlyIncome: number, 
     pastBudgets: Budget[], 
-    existingDebts: any[], 
-    existingGoals: any[]
+    existingDebts: Array<{name: string; amount: number; monthlyRepayment?: number}>, 
+    existingGoals: Array<{title: string; targetAmount: number; monthlyContribution?: number; name?: string}>
   ): Promise<BudgetAllocation[]> {
     console.log('🤖 Generating budget allocations with AI...');
     console.log('💰 Monthly income:', monthlyIncome);
@@ -85,7 +85,7 @@ export class AIBudgetIntegrationService implements AIBudgetIntegration {
       console.log('📊 Parsed budget allocation response:', parsedResponse);
 
       if (parsedResponse.allocations && Array.isArray(parsedResponse.allocations)) {
-        const allocations: BudgetAllocation[] = parsedResponse.allocations.map((alloc: any, index: number) => ({
+        const allocations: BudgetAllocation[] = parsedResponse.allocations.map((alloc: {category: string; amount: number; percentage: number; priority?: number; description?: string; reasoning?: string}, index: number) => ({
           category: alloc.category,
           amount: alloc.amount,
           percentage: alloc.percentage,
@@ -115,12 +115,12 @@ export class AIBudgetIntegrationService implements AIBudgetIntegration {
   /**
    * Build the prompt for budget allocation generation
    */
-  private buildBudgetAllocationPrompt(
+    private buildBudgetAllocationPrompt(
     aiAnalysis: AIAnalysisData, 
     monthlyIncome: number, 
     pastBudgets: Budget[], 
-    existingDebts: any[], 
-    existingGoals: any[]
+    existingDebts: Array<{name: string; amount: number; monthlyRepayment?: number}>,
+    existingGoals: Array<{title: string; targetAmount: number; monthlyContribution?: number; name?: string}>
   ): string {
     const recentBudgets = pastBudgets.slice(-3); // Last 3 budgets
     const totalDebt = existingDebts.reduce((sum, debt) => sum + (debt.monthlyRepayment || 0), 0);
@@ -347,8 +347,8 @@ Return ONLY valid JSON with no additional text. Ensure all amounts add up to £$
    */
   mapAllocationsToUserCategories(
     allocations: BudgetAllocation[], 
-    userDebts: any[], 
-    userGoals: any[]
+    userDebts: Array<{name: string; amount: number; monthlyRepayment?: number}>, 
+    userGoals: Array<{title: string; targetAmount: number; monthlyContribution?: number; name?: string}>
   ): BudgetAllocation[] {
     console.log('🔄 Mapping allocations to user-specific categories...');
     console.log('💳 User debts:', userDebts.map(d => d.name));
@@ -476,7 +476,7 @@ Return ONLY valid JSON with no additional text. Ensure all amounts add up to £$
   /**
    * Validate AI budget allocations
    */
-  validateAllocations(allocations: BudgetAllocation[], monthlyIncome: number, existingDebts: any[] = [], existingGoals: any[] = []): boolean {
+  validateAllocations(allocations: BudgetAllocation[], monthlyIncome: number, existingDebts: Array<{name: string; amount: number; monthlyRepayment?: number}> = [], existingGoals: Array<{title: string; targetAmount: number; monthlyContribution?: number; name?: string}> = []): boolean {
     if (!allocations || allocations.length === 0) {
       console.warn('⚠️ No allocations to validate');
       return false;
@@ -626,12 +626,10 @@ Return ONLY valid JSON with no additional text. Ensure all amounts add up to £$
       
       // Check if we have a mapping for this category
       const lowerCategory = allocation.category.toLowerCase();
-      let found = false;
       
       for (const [key, value] of Object.entries(categoryMap)) {
         if (lowerCategory.includes(key) || key.includes(lowerCategory)) {
           mappedCategory = value;
-          found = true;
           break;
         }
       }
@@ -843,7 +841,7 @@ export class BankStatementAnalysisService {
       console.log('📄 Raw response length:', response.length, 'characters');
       
       // Try to parse the response with robust error handling
-      let parsedResponse: any;
+              let parsedResponse: {transactions?: Array<{date: string; description: string; amount: number; type: "credit" | "debit"; category: string; vendor: string}>; bankName?: string; accountType?: string; statementPeriod?: {startDate: string; endDate: string}; summary?: any; categoryBreakdown?: any[]; spendingPatterns?: any; topVendors?: any[]; financialHealth?: any; savingsOpportunities?: any[]; insights?: any; recommendations?: any};
       try {
         // First, try to parse as-is
         parsedResponse = JSON.parse(response);
@@ -1200,13 +1198,13 @@ export class BankStatementAnalysisService {
         
         // Validate that all transactions are categorized
         const transactions = parsedResponse.transactions || [];
-        const uncategorizedTransactions = transactions.filter((t: any) => !t.category || t.category.trim() === '');
+        const uncategorizedTransactions = transactions.filter((t: {category?: string}) => !t.category || t.category.trim() === '');
         
         if (uncategorizedTransactions.length > 0) {
           console.warn(`⚠️ Found ${uncategorizedTransactions.length} uncategorized transactions, categorizing them as "Other"`);
           
           // Categorize uncategorized transactions as "Other"
-          transactions.forEach((t: any) => {
+          transactions.forEach((t: {category?: string; description?: string}) => {
             if (!t.category || t.category.trim() === '') {
               t.category = 'Other';
               console.log(`🔄 Categorized transaction "${t.description}" as "Other"`);
@@ -1298,8 +1296,20 @@ export class BankStatementAnalysisService {
             endDate: new Date().toISOString().split('T')[0]
           },
           transactions: parsedResponse.transactions || [],
-          summary: parsedResponse.summary,
-          categoryBreakdown: (parsedResponse.categoryBreakdown || []).filter((cat: any) => cat.amount > 0),
+          summary: {
+            totalSpending: parsedResponse.summary?.totalSpending || 0,
+            totalIncome: parsedResponse.summary?.totalIncome || 0,
+            netPosition: parsedResponse.summary?.netPosition || 0,
+            periodDays: parsedResponse.summary?.periodDays || 30,
+            transactionCount: parsedResponse.summary?.transactionCount || 0,
+            monthlyIncome: parsedResponse.summary?.monthlyIncome || 0,
+            incomeVsSpending: parsedResponse.summary?.incomeVsSpending || {
+              percentage: 0,
+              remaining: 0,
+              status: 'within_budget' as const
+            }
+          },
+          categoryBreakdown: (parsedResponse.categoryBreakdown || []).filter((cat: {amount?: number}) => cat.amount && cat.amount > 0),
           spendingPatterns: parsedResponse.spendingPatterns || {
             dailyAverage: 0,
             weeklyAverage: 0,
@@ -1876,7 +1886,7 @@ Return ONLY valid JSON with no additional text.`;
   /**
    * Build the prompt for overall analysis
    */
-  private buildOverallAnalysisPrompt(statements: any[]): string {
+  private buildOverallAnalysisPrompt(statements: Array<{transactions: Array<{date: string; description: string; amount: number; type: string; category: string}>; totalTransactions: number; totalDebits: number; totalCredits: number; startDate: string}>): string {
     const totalStatements = statements.length;
     const totalTransactions = statements.reduce((sum, s) => sum + s.totalTransactions, 0);
     const totalSpending = statements.reduce((sum, s) => sum + s.totalDebits, 0);
@@ -1982,7 +1992,7 @@ Return ONLY valid JSON with no additional text.`;
   /**
    * Get monthly breakdown from statements
    */
-  private getMonthlyBreakdown(statements: any[]): Array<{
+  private getMonthlyBreakdown(statements: Array<{transactions: Array<{date: string; amount: number; type: string}>; startDate: string; totalDebits: number; totalCredits: number}>): Array<{
     month: string;
     spending: number;
     income: number;
@@ -2144,7 +2154,7 @@ Return ONLY valid JSON with no additional text.`;
   /**
    * Generate fallback overall analysis
    */
-  private async generateFallbackOverallAnalysis(statements: any[], userId: string): Promise<OverallAnalysis> {
+  private async generateFallbackOverallAnalysis(statements: Array<{transactions: Array<{date: string; amount: number; type: string; category: string}>; startDate: string; endDate: string; totalDebits: number; totalCredits: number; totalTransactions: number}>, userId: string): Promise<OverallAnalysis> {
     const totalStatements = statements.length;
     
     // Calculate totals from actual transaction data, not summary fields
@@ -2154,7 +2164,7 @@ Return ONLY valid JSON with no additional text.`;
     
     statements.forEach(statement => {
       if (statement.transactions && Array.isArray(statement.transactions)) {
-        statement.transactions.forEach((transaction: any) => {
+        statement.transactions.forEach((transaction: {date: string; amount: number; type: string; category: string}) => {
           totalTransactions++;
           if (transaction.type === 'debit') {
             totalSpending += Math.abs(transaction.amount || 0);

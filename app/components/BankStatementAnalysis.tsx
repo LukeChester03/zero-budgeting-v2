@@ -5,8 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { TrendingUp, TrendingDown, BarChart3, PieChart, AlertTriangle, PoundSterling, Target, RefreshCw } from "lucide-react";
+import { TrendingUp, TrendingDown, BarChart3, AlertTriangle, PoundSterling, Target } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell } from "recharts";
 import { useBankStatementStore } from "@/app/lib/bankStatementStore";
 import { useBankStatementAnalysisStore } from "@/app/lib/bankStatementAnalysisStore";
@@ -349,9 +348,7 @@ export default function BankStatementAnalysis() {
             .filter(t => t.type === "debit")
             .reduce((sum, t) => sum + Math.abs(t.amount), 0);
           
-          const totalIncome = allTransactions
-            .filter(t => t.type === "credit")
-            .reduce((sum, t) => sum + t.amount, 0);
+
           
           // Calculate income for the period: monthly income × number of statements
           const monthlyIncome = useFirebaseStore.getState().income;
@@ -702,9 +699,8 @@ export default function BankStatementAnalysis() {
               const allKeyFindings = statementAnalyses.flatMap(analysis => analysis.insights.keyFindings);
               const allRecommendations = statementAnalyses.flatMap(analysis => analysis.recommendations.immediate);
               
-              // Get unique insights and recommendations
+              // Get unique insights
               const uniqueFindings = [...new Set(allKeyFindings)];
-              const uniqueRecommendations = [...new Set(allRecommendations)];
               
               return (
                 <div className="space-y-4">
@@ -799,7 +795,7 @@ export default function BankStatementAnalysis() {
                 });
               }
               return acc;
-            }, [] as any[]);
+            }, [] as Array<{category: string; amount: number; transactionCount: number}>);
             
             // Add missing properties that the component expects
             const totalSpendingForPercentage = aggregatedCategories.reduce((sum, cat) => sum + cat.amount, 0);

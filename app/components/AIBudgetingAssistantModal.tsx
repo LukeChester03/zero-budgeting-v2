@@ -1,14 +1,17 @@
 'use client';
-import React from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Brain, ArrowRight, ArrowLeft, CheckCircle, Sparkles, DollarSign, AlertTriangle } from 'lucide-react';
+import { Brain, ArrowRight, ArrowLeft, CheckCircle, Sparkles, DollarSign, AlertTriangle, Target } from 'lucide-react';
 import { useAIBudgeting } from '@/hooks/use-ai-budgeting';
 import { AI_QUESTIONS } from '@/lib/data/ai-questions';
 import { QuestionRenderer } from './ai/QuestionRenderer';
-import { AnalysisSummary } from './ai/AnalysisSummary';
+import { useAIStore } from '@/lib/store/ai-store';
+import { AIService } from '@/lib/services/ai-service';
+
+import { useAuth } from '@/lib/auth-context';
 
 interface AIBudgetingAssistantModalProps {
   isOpen: boolean;
@@ -16,11 +19,10 @@ interface AIBudgetingAssistantModalProps {
 }
 
 export default function AIBudgetingAssistantModal({ isOpen, onClose }: AIBudgetingAssistantModalProps) {
+
   const {
     preferences, 
-    aiAnalysis, 
     parsedAnalysis, 
-    hasExistingAnalysis, 
     isLoading, 
     error, 
     currentStep, 
@@ -28,27 +30,100 @@ export default function AIBudgetingAssistantModal({ isOpen, onClose }: AIBudgeti
     monthlyIncome,
     updatePreference, 
     resetPreferences, 
+    resetPreferencesOnly,
     handleSavePreferences, 
     handleNext, 
     handlePrevious, 
     canProceed, 
     clearError,
     isLastStep, 
-    isSummaryStep
+    isSummaryStep,
+    createAutomatedBudget
   } = useAIBudgeting();
+
+  const { user } = useAuth();
 
   const currentQuestion = AI_QUESTIONS[currentStep];
 
-  const handleApplyToBudget = () => {
-    // TODO: Implement budget application logic
-    console.log('Applying AI analysis to budget...');
-    // This would integrate with the budget system
+
+
+  const handleCreateAutomatedBudget = async () => {
+    if (!monthlyIncome || monthlyIncome <= 0) {
+      console.log('❌ No monthly income available for budget creation');
+      return;
+    }
+    
+    console.log('🤖 Creating automated budget from AI analysis...');
+    
+    try {
+      const result = await createAutomatedBudget(user?.uid || '', monthlyIncome);
+      
+      if (result.success) {
+        console.log('✅ Automated budget created successfully with ID:', result.budgetId);
+        // Show success message and potentially redirect to budget view
+        // You could also trigger a refresh of the budget list here
+      } else {
+        console.error('❌ Failed to create automated budget');
+        // Show error message to user
+      }
+    } catch (error) {
+      console.error('❌ Error creating automated budget:', error);
+    }
   };
 
   const handleClose = () => {
-    resetPreferences();
+    // Only reset preferences if there's no existing analysis
+    if (!parsedAnalysis) {
+      resetPreferences();
+    } else {
+      // If analysis exists, just reset preferences but keep the analysis
+      resetPreferencesOnly();
+    }
     clearError();
     onClose();
+  };
+
+  const handleAnalysisGenerated = async () => {
+    try {
+      console.log('🚀 User clicked View Full Analysis, ensuring analysis is saved...');
+      
+      // Check if we have the analysis in the store
+      const { parsedAnalysis, aiAnalysis, setError } = useAIStore.getState();
+      
+      if (!parsedAnalysis || !aiAnalysis) {
+        console.error('❌ No analysis available in store');
+        setError('Analysis not available. Please try again.');
+        return;
+      }
+      
+      // Ensure the analysis is saved to Firebase before redirecting
+      console.log('💾 Ensuring analysis is saved to Firebase...');
+      let existing = await AIService.getExistingAnalysis(user?.uid || '');
+      
+      if (!existing) {
+        // Create initial document if it doesn't exist
+        console.log('🆕 No existing document found, creating initial preferences document...');
+        const { preferences } = useAIStore.getState();
+        const docId = await AIService.createInitialPreferences(user?.uid || '', preferences);
+        existing = { id: docId, userId: user?.uid || '', preferences, aiAnalysis: '', createdAt: '', updatedAt: '' };
+      }
+      
+      if (existing) {
+        await AIService.saveGeneratedAnalysis(existing.id, aiAnalysis);
+        console.log('✅ Analysis saved to Firebase, redirecting...');
+        
+        // Close the modal and redirect
+        onClose();
+        window.location.href = '/ai-analysis';
+      } else {
+        throw new Error('Failed to create or find document for saving analysis');
+      }
+      
+    } catch (error) {
+      console.error('❌ Error ensuring analysis is saved:', error);
+      const { setError } = useAIStore.getState();
+      setError('Failed to save analysis. Please try again.');
+    }
   };
 
   return (
@@ -111,26 +186,53 @@ export default function AIBudgetingAssistantModal({ isOpen, onClose }: AIBudgeti
 
         {/* Content */}
         <div className="min-h-[400px]">
-          {isSummaryStep ? (
-            // Show AI Analysis Summary
-            parsedAnalysis ? (
-              <AnalysisSummary 
-                analysis={parsedAnalysis} 
-                onApplyToBudget={handleApplyToBudget}
-              />
+                      {isSummaryStep ? (
+              // Show AI Analysis Summary
+              parsedAnalysis ? (
+                <div className="text-center py-12">
+                  <div className="w-20 h-20 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <CheckCircle className="w-10 h-10 text-green-600" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                    Analysis Complete!
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-300 mb-8 max-w-md mx-auto">
+                    Your personalized financial analysis has been generated. Click below to view the comprehensive results.
+                  </p>
+                  <Button 
+                    onClick={handleAnalysisGenerated}
+                    className="bg-blue-600 hover:bg-blue-700 px-8 py-4 text-lg"
+                  >
+                    <Target className="w-6 h-6 mr-3" />
+                    View Full Analysis
+                  </Button>
+                </div>
+              ) : (
+                <div className="text-center py-16 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border-2 border-dashed border-blue-200 dark:border-blue-700">
+                  <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary mx-auto mb-6"></div>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
+                    Generating Your Personalized Analysis
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto leading-relaxed">
+                    Our AI is analyzing your financial situation, goals, and preferences to create a comprehensive budget strategy tailored just for you.
+                  </p>
+                  <div className="mt-6 flex justify-center">
+                    <div className="flex space-x-2">
+                      <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                      <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    </div>
+                  </div>
+                </div>
+              )
             ) : (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                <p className="text-gray-600 dark:text-gray-300">Generating your personalized analysis...</p>
-              </div>
-            )
-          ) : (
             // Show Question
             currentQuestion && (
               <QuestionRenderer
                 question={currentQuestion}
                 preferences={preferences}
                 updatePreference={updatePreference}
+                onGenerateAnalysis={handleSavePreferences}
               />
             )
           )}
@@ -201,6 +303,7 @@ export default function AIBudgetingAssistantModal({ isOpen, onClose }: AIBudgeti
           </div>
         )}
       </DialogContent>
+
     </Dialog>
   );
 }

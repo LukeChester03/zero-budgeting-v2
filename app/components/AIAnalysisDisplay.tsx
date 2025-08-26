@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ import {
   CheckCircle,
   DollarSign,
   Calendar,
-  Users,
+
   Building2,
   ArrowUpRight,
   ArrowDownRight
@@ -103,10 +103,10 @@ export default function AIAnalysisDisplay({ analysis, onClose }: AIAnalysisDispl
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              £{analysis.totalSpending.toFixed(2)}
+              £{analysis.summary.totalSpending.toFixed(2)}
             </div>
             <p className="text-xs text-muted-foreground">
-              {analysis.periodDays} days
+              {analysis.summary.periodDays} days
             </p>
           </CardContent>
         </Card>
@@ -118,10 +118,10 @@ export default function AIAnalysisDisplay({ analysis, onClose }: AIAnalysisDispl
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              £{analysis.totalIncome.toFixed(2)}
+              £{analysis.summary.totalIncome.toFixed(2)}
             </div>
             <p className="text-xs text-muted-foreground">
-              {analysis.periodDays} days
+              {analysis.summary.periodDays} days
             </p>
           </CardContent>
         </Card>
@@ -134,12 +134,12 @@ export default function AIAnalysisDisplay({ analysis, onClose }: AIAnalysisDispl
           <CardContent>
             <div className={cn(
               "text-2xl font-bold",
-              analysis.netPosition >= 0 ? "text-green-600" : "text-red-600"
+              analysis.summary.netPosition >= 0 ? "text-green-600" : "text-red-600"
             )}>
-              £{analysis.netPosition.toFixed(2)}
+              £{analysis.summary.netPosition.toFixed(2)}
             </div>
             <p className="text-xs text-muted-foreground">
-              {analysis.netPosition >= 0 ? "Positive" : "Negative"}
+              {analysis.summary.netPosition >= 0 ? "Positive" : "Negative"}
             </p>
           </CardContent>
         </Card>

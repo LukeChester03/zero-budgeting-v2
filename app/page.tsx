@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useFirebaseStore } from "@/lib/store-firebase";
 import { useAuth } from "@/lib/auth-context";
+import { useAIStore } from "@/lib/store/ai-store";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +15,8 @@ import MonthlyIncomeInput from "@/app/components/MonthlyIncomeInput";
 import AuthModal from "@/app/components/AuthModal";
 import WhereDoIStartGuide from "@/app/components/WhereDoIStartGuide";
 import AIBudgetingAssistantModal from "@/app/components/AIBudgetingAssistantModal";
+
+
 import { 
   TrendingUp, 
   Target, 
@@ -35,7 +38,7 @@ import {
   Brain
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function Home() {
   const router = useRouter();
@@ -43,6 +46,20 @@ export default function Home() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
+
+  
+  // Check URL parameters for auto-opening AI modal
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const openAI = urlParams.get('openAI');
+    
+    if (openAI === 'true' && user) {
+      setIsAIAssistantOpen(true);
+      // Clean up the URL parameter
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [user]);
   
   // Store selectors
   const budgets = useFirebaseStore((s) => s.budgets);
@@ -52,6 +69,28 @@ export default function Home() {
   const getTotalSaved = useFirebaseStore((s) => s.getTotalSaved);
   const getTotalMonthlyDebtRepayments = useFirebaseStore((s) => s.getTotalMonthlyDebtRepayments);
   const getSavedAmountForGoal = useFirebaseStore((s) => s.getSavedAmountForGoal);
+  
+  // AI store selectors
+  const parsedAnalysis = useAIStore((s) => s.parsedAnalysis);
+  const hasExistingAnalysis = useAIStore((s) => s.hasExistingAnalysis);
+  const checkExistingAnalysis = useAIStore((s) => s.checkExistingAnalysis);
+
+  // Check for existing AI analysis when user is authenticated
+  useEffect(() => {
+    if (user) {
+      console.log('🔍 Checking for existing AI analysis for user:', user.uid);
+      checkExistingAnalysis(user.uid);
+    }
+  }, [user, checkExistingAnalysis]);
+
+  // Debug logging
+  useEffect(() => {
+    console.log('📊 AI Store State:', {
+      hasExistingAnalysis,
+      parsedAnalysis: !!parsedAnalysis,
+      user: !!user
+    });
+  }, [hasExistingAnalysis, parsedAnalysis, user]);
 
 
   // Helper function to handle floating-point precision when comparing to zero
@@ -458,6 +497,7 @@ export default function Home() {
             </motion.div>
           </ClientOnly>
         </div>
+
       </section>
 
       <div className="container mx-auto px-4 sm:px-6 pb-8 sm:pb-12">
@@ -590,6 +630,30 @@ export default function Home() {
                 </div>
               </CardContent>
             </Card>
+
+
+
+            {parsedAnalysis && (
+              <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer border-purple-500/20 hover:border-purple-500/40">
+                <CardContent className="p-4 sm:p-6" onClick={() => router.push('/ai-analysis')}>
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <div className="p-2 sm:p-3 bg-purple-500/10 rounded-xl group-hover:bg-purple-500/20 transition-colors">
+                      <Target className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-base sm:text-lg mb-1">View AI Analysis</h3>
+                      <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3">
+                        Review your personalized financial analysis
+                      </p>
+                      <Badge variant="outline" className="border-purple-200 text-purple-700 dark:border-purple-800 dark:text-purple-300">
+                        Analysis
+                      </Badge>
+                    </div>
+                    <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground group-hover:text-purple-500 transition-colors" />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </motion.section>
 
@@ -784,6 +848,7 @@ export default function Home() {
         <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
         <WhereDoIStartGuide isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
         <AIBudgetingAssistantModal isOpen={isAIAssistantOpen} onClose={() => setIsAIAssistantOpen(false)} />
+        
       </div>
     </motion.div>
   );

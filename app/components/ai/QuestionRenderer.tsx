@@ -7,11 +7,14 @@ import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { AIQuestion, AIPreferences } from '@/lib/types/ai';
+import { DebtConfirmationQuestion } from './DebtConfirmationQuestion';
+import { GoalsConfirmationQuestion } from './GoalsConfirmationQuestion';
 
 interface QuestionRendererProps {
   question: AIQuestion;
   preferences: AIPreferences;
-  updatePreference: (key: keyof AIPreferences, value: any) => void;
+  updatePreference: (key: keyof AIPreferences, value: string | number | string[]) => void;
+  onGenerateAnalysis?: () => void;
 }
 
 export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
@@ -319,6 +322,116 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
             rows={question.rows || 4}
             className="text-lg border-2 border-gray-200 dark:border-gray-700 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 resize-none"
           />
+        </div>
+      );
+
+    case 'redirect':
+      return (
+        <div className="space-y-6">
+          <div className="text-center space-y-3">
+            <IconComponent className="w-12 h-12 text-primary mx-auto" />
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+              {question.title}
+            </h3>
+            <p className="text-gray-600 dark:text-gray-300 text-lg">
+              {question.description}
+            </p>
+            {question.required && (
+              <Badge variant="outline" className="text-orange-600 border-orange-300">
+                Required
+              </Badge>
+            )}
+          </div>
+          
+          <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-lg p-6 space-y-4">
+            <div className="text-center space-y-3">
+              <h4 className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+                {question.redirectInfo?.title}
+              </h4>
+              <p className="text-blue-700 dark:text-blue-300">
+                {question.redirectInfo?.description}
+              </p>
+            </div>
+            
+            <div className="flex justify-center">
+              <a
+                href={question.redirectInfo?.route}
+                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors duration-200"
+              >
+                {question.redirectInfo?.buttonText}
+              </a>
+            </div>
+            
+            <div className="text-center">
+              <p className="text-sm text-blue-600 dark:text-blue-400">
+                {question.redirectInfo?.returnMessage}
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+
+    case 'debtConfirmation':
+      return (
+        <DebtConfirmationQuestion
+          question={question}
+          preferences={preferences}
+          updatePreference={updatePreference}
+        />
+      );
+
+    case 'goalsConfirmation':
+      return (
+        <GoalsConfirmationQuestion
+          question={question}
+          preferences={preferences}
+          updatePreference={updatePreference}
+        />
+      );
+
+    case 'summary':
+      return (
+        <div className="space-y-6">
+          <div className="text-center space-y-3">
+            <IconComponent className="w-12 h-12 text-green-600 mx-auto" />
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+              {question.title}
+            </h3>
+            <p className="text-gray-600 dark:text-gray-300 text-lg">
+              {question.description}
+            </p>
+          </div>
+          
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
+            <h4 className="font-semibold text-gray-900 dark:text-white mb-4">Your Responses Summary:</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              {Object.entries(preferences).map(([key, value]) => {
+                if (value && value !== '' && value !== 0) {
+                  return (
+                    <div key={key} className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400 capitalize">
+                        {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:
+                      </span>
+                      <span className="text-gray-900 dark:text-white font-medium">
+                        {Array.isArray(value) ? value.join(', ') : String(value)}
+                      </span>
+                    </div>
+                  );
+                }
+                return null;
+              })}
+            </div>
+          </div>
+          
+          <div className="text-center pt-6">
+            <button 
+              onClick={onGenerateAnalysis}
+              className="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors duration-200"
+            >
+              <IconComponent className="w-4 h-4 mr-2 inline" />
+              Generate AI Analysis
+            </button>
+          </div>
         </div>
       );
 

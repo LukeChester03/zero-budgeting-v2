@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Upload, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import { useBankStatementStore, BankStatement, Transaction } from "@/app/lib/bankStatementStore";
+import { BankStatementAnalysis } from "@/lib/types/ai";
 import { useBankStatementAnalysisStore } from "@/app/lib/bankStatementAnalysisStore";
 import { useFirebaseStore } from "@/lib/store-firebase";
 import { bankStatementAnalysis } from "@/lib/services/ai-budget-integration";
@@ -47,7 +48,7 @@ export default function BankStatementUpload() {
   const [errorMessage, setErrorMessage] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  const [uploadedAnalysis, setUploadedAnalysis] = useState<any>(null);
+
   const [previewData, setPreviewData] = useState<{
     fileName: string;
     bank: string;
@@ -58,54 +59,11 @@ export default function BankStatementUpload() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const resetUpload = () => {
-    setUploadedAnalysis(null);
-    setPreviewData(null);
-    setUploadStatus("idle");
-    setUploadProgress(0);
-    setErrorMessage("");
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-    // Force a re-render to clear any cached data
-    setTimeout(() => {
-      setUploadedAnalysis(null);
-      setPreviewData(null);
-    }, 100);
-  };
 
-  const autoCategorizeTransaction = (description: string): string => {
-    const suggestions = getCategorySuggestions(description);
-    if (suggestions.length > 0) {
-      return suggestions[0];
-    }
 
-    const lowerDescription = description.toLowerCase();
-    
-    // Common spending patterns
-    const categoryPatterns: Record<string, string[]> = {
-      "Groceries": ["tesco", "sainsbury", "asda", "morrisons", "aldi", "lidl", "co-op", "waitrose", "food", "grocery"],
-      "Transportation": ["uber", "lyft", "train", "bus", "tube", "tfl", "parking", "fuel", "petrol", "diesel", "shell", "bp", "esso"],
-      "Dining": ["restaurant", "cafe", "pub", "bar", "mcdonalds", "kfc", "subway", "dominos", "pizza", "takeaway"],
-      "Shopping": ["amazon", "ebay", "asos", "h&m", "zara", "next", "m&s", "john lewis", "argos", "currys"],
-      "Entertainment": ["netflix", "spotify", "disney", "prime", "cinema", "theatre", "concert", "game"],
-      "Utilities": ["british gas", "edf", "e.on", "npower", "thames water", "electricity", "gas", "water", "internet", "broadband"],
-      "Insurance": ["aviva", "direct line", "churchill", "admiral", "esure", "insurance"],
-      "Healthcare": ["boots", "superdrug", "pharmacy", "doctor", "dentist", "hospital"],
-      "Education": ["university", "college", "school", "course", "training"],
-      "Housing": ["rent", "mortgage", "landlord", "letting", "estate agent"],
-    };
 
-    for (const [category, patterns] of Object.entries(categoryPatterns)) {
-      if (patterns.some(pattern => lowerDescription.includes(pattern))) {
-        return category;
-      }
-    }
 
-    return "Uncategorized";
-  };
-
-  const parsePDF = async (file: File): Promise<{ transactions: ParsedTransaction[], analysis: any }> => {
+  const parsePDF = async (file: File): Promise<{ transactions: ParsedTransaction[], analysis: BankStatementAnalysis }> => {
     try {
       console.log('🤖 Processing PDF file with Gemini AI:', file.name);
       
@@ -217,6 +175,10 @@ export default function BankStatementUpload() {
       
       // Create a basic fallback analysis
       const fallbackAnalysis = {
+        id: crypto.randomUUID(),
+        statementId: crypto.randomUUID(),
+        userId: useFirebaseStore.getState().user?.uid || 'unknown',
+        analysisDate: new Date().toISOString(),
         bankName: "Unknown Bank",
         accountType: "Current Account",
         statementPeriod: {
@@ -238,7 +200,13 @@ export default function BankStatementUpload() {
           totalIncome: 0,
           netPosition: -100.00,
           periodDays: 30,
-          transactionCount: 1
+          transactionCount: 1,
+          monthlyIncome: 0,
+          incomeVsSpending: {
+            percentage: 0,
+            remaining: 0,
+            status: 'within_budget' as const
+          }
         },
         categoryBreakdown: [
           {
@@ -247,7 +215,7 @@ export default function BankStatementUpload() {
             percentage: 100,
             transactionCount: 1,
             averageTransaction: 100.00,
-            trend: "stable"
+            trend: "stable" as const
           }
         ],
         spendingPatterns: {
@@ -268,7 +236,7 @@ export default function BankStatementUpload() {
         ],
         financialHealth: {
           score: 50,
-          status: "fair",
+          status: "fair" as const,
           factors: ["PDF analysis failed"],
           recommendations: ["Please try uploading the PDF again"]
         },
@@ -284,7 +252,7 @@ export default function BankStatementUpload() {
           immediate: ["Re-upload PDF"],
           shortTerm: ["Check PDF format"],
           longTerm: ["Ensure PDF is readable"],
-          priority: "high"
+          priority: "high" as const
         }
       };
       
@@ -485,6 +453,9 @@ export default function BankStatementUpload() {
         throw new Error("No valid transactions found in the PDF file. Please check the file format.");
       }
 
+      // Generate a single UUID for the statement that will be used consistently
+      const statementId = crypto.randomUUID();
+
       // Use AI analysis data instead of manual categorization
       const categorizedTransactions: Transaction[] = analysis.transactions?.map((transaction: any) => ({
         id: crypto.randomUUID(),
@@ -495,7 +466,7 @@ export default function BankStatementUpload() {
         category: transaction.category || "Other", // Use AI category, fallback to "Other"
         bank: analysis.bankName || "Unknown Bank", // Use AI bank name
         accountType: analysis.accountType || "Current Account", // Use AI account type
-        statementId: crypto.randomUUID(),
+        statementId: statementId, // Use the consistent statement ID
       })) || transactions.map((transaction) => ({
         id: crypto.randomUUID(),
         date: transaction.date,
@@ -505,7 +476,7 @@ export default function BankStatementUpload() {
         category: "Other", // Fallback category
         bank: analysis.bankName || "Unknown Bank", // Use AI bank name if available
         accountType: analysis.accountType || "Current Account", // Use AI account type if available
-        statementId: crypto.randomUUID(),
+        statementId: statementId, // Use the consistent statement ID
       }));
 
       const totalDebits = categorizedTransactions
@@ -521,7 +492,7 @@ export default function BankStatementUpload() {
       const endDate = dates[dates.length - 1];
 
       const statement: BankStatement = {
-        id: crypto.randomUUID(),
+        id: statementId, // Use the consistent statement ID
         fileName: file.name,
         bank: analysis.bankName || "Unknown Bank", // Use AI bank name
         accountType: analysis.accountType || "Current Account", // Use AI account type
@@ -544,57 +515,8 @@ export default function BankStatementUpload() {
 
       setUploadStatus("success");
       
-      // Auto-save after 2 seconds
-      setTimeout(async () => {
-        try {
-          // Save the statement
-          console.log('💾 Saving statement to store:', statement);
-        await addStatement(statement);
-          
-          // Save AI analysis (already generated during PDF processing)
-          if (user && analysis) {
-            setIsAnalyzing(true);
-            try {
-              // Save the already generated AI analysis to database
-              const analysisToSave = {
-                ...analysis,
-                statementId: statement.id,
-                userId: user.uid
-              };
-              
-              console.log('💾 Saving AI analysis:', analysisToSave);
-              console.log('💾 Analysis structure check:', {
-                hasId: !!analysisToSave.id,
-                hasStatementId: !!analysisToSave.statementId,
-                hasUserId: !!analysisToSave.userId,
-                hasSummary: !!analysisToSave.summary,
-                hasTransactions: !!analysisToSave.transactions,
-                transactionsCount: analysisToSave.transactions?.length || 0
-              });
-              
-              await addStatementAnalysis(analysisToSave);
-              
-              console.log('✅ AI analysis saved to database');
-              setUploadedAnalysis(analysis);
-            } catch (analysisError) {
-              console.error('❌ Failed to save AI analysis:', analysisError);
-              // Continue with statement upload even if analysis save fails
-            } finally {
-              setIsAnalyzing(false);
-            }
-          }
-          
-
-          // DON'T clear previewData here - keep it visible
-        setUploadStatus("idle");
-        setUploadProgress(0);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-          }
-        } catch (error) {
-          console.error('Error in auto-save:', error);
-        }
-      }, 2000);
+      // Remove auto-save to prevent duplicates - user must manually save
+      // This ensures only one save operation occurs
 
     } catch (error) {
       setUploadStatus("error");
@@ -608,26 +530,121 @@ export default function BankStatementUpload() {
   const handleSaveStatement = async () => {
     if (!previewData) return;
     
-    const statement: BankStatement = {
-      id: crypto.randomUUID(),
-      fileName: previewData.fileName,
-      bank: previewData.bank,
-      accountType: previewData.accountType,
-      uploadDate: new Date().toISOString(),
-      startDate: previewData.categorizedTransactions[0]?.date || "",
-      endDate: previewData.categorizedTransactions[previewData.categorizedTransactions.length - 1]?.date || "",
-      totalTransactions: previewData.categorizedTransactions.length,
-      totalDebits: previewData.categorizedTransactions.filter(t => t.type === "debit").reduce((sum, t) => sum + t.amount, 0),
-      totalCredits: previewData.categorizedTransactions.filter(t => t.type === "credit").reduce((sum, t) => sum + t.amount, 0),
-      transactions: previewData.categorizedTransactions,
-    };
+    try {
+      // Don't generate UUID here - let the store handle it
+      const statement: BankStatement = {
+        id: '', // Will be set by the store
+        fileName: previewData.fileName,
+        bank: previewData.bank,
+        accountType: previewData.accountType,
+        uploadDate: new Date().toISOString(),
+        startDate: previewData.categorizedTransactions[0]?.date || "",
+        endDate: previewData.categorizedTransactions[previewData.categorizedTransactions.length - 1]?.date || "",
+        totalTransactions: previewData.categorizedTransactions.length,
+        totalDebits: previewData.categorizedTransactions.filter(t => t.type === "debit").reduce((sum, t) => sum + t.amount, 0),
+        totalCredits: previewData.categorizedTransactions.filter(t => t.type === "credit").reduce((sum, t) => sum + t.amount, 0),
+        transactions: previewData.categorizedTransactions.map(t => ({
+          ...t,
+          statementId: '' // Will be set by the store
+        })),
+      };
 
-    await addStatement(statement);
-    setPreviewData(null);
-    setUploadStatus("idle");
-    setUploadProgress(0);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+      console.log('💾 Saving statement to store:', statement);
+      const savedStatement = await addStatement(statement);
+      
+      // Save AI analysis if available, using the correct statement ID
+      if (user && previewData) {
+        setIsAnalyzing(true);
+        try {
+          // Generate a basic analysis structure for the saved statement
+          const analysis = {
+            id: crypto.randomUUID(),
+            statementId: savedStatement.id, // Use the correct Firebase ID
+            userId: user.uid,
+            analysisDate: new Date().toISOString(),
+            bankName: statement.bank,
+            accountType: statement.accountType,
+            statementPeriod: {
+              startDate: statement.startDate,
+              endDate: statement.endDate
+            },
+            transactions: statement.transactions.map(t => ({
+              date: t.date,
+              description: t.description,
+              amount: t.amount,
+              type: t.type,
+              category: t.category,
+              vendor: t.description.split(' ')[0] || 'Unknown' // Extract vendor from description
+            })),
+            summary: {
+              totalSpending: statement.totalDebits,
+              totalIncome: statement.totalCredits,
+              netPosition: statement.totalCredits - statement.totalDebits,
+              periodDays: 30,
+              transactionCount: statement.totalTransactions,
+              monthlyIncome: 0, // Will be populated by AI analysis
+              incomeVsSpending: {
+                percentage: 0,
+                remaining: 0,
+                status: 'within_budget' as const
+              }
+            },
+            categoryBreakdown: [],
+            spendingPatterns: {
+              dailyAverage: statement.totalDebits / 30,
+              weeklyAverage: (statement.totalDebits / 30) * 7,
+              highestSpendingDay: "Unknown",
+              lowestSpendingDay: "Unknown",
+              weekendVsWeekday: {
+                weekend: 0,
+                weekday: statement.totalDebits,
+                difference: statement.totalDebits
+              }
+            },
+            topVendors: [],
+            financialHealth: {
+              score: 70,
+              status: "good" as const,
+              factors: ["Statement uploaded successfully"],
+              recommendations: ["Review transactions for accuracy"]
+            },
+            savingsOpportunities: [],
+            insights: {
+              summary: "Statement uploaded and processed",
+              keyFindings: ["Transactions extracted successfully"],
+              warnings: [],
+              advice: ["Review categories for accuracy"],
+              trends: ["New data available for analysis"]
+            },
+            recommendations: {
+              immediate: ["Review transaction categories"],
+              shortTerm: ["Set up budget goals"],
+              longTerm: ["Monitor spending patterns"],
+              priority: "medium" as const
+            }
+          };
+          
+          console.log('💾 Saving AI analysis:', analysis);
+          await addStatementAnalysis(analysis);
+          
+          console.log('✅ AI analysis saved to database');
+        } catch (analysisError) {
+          console.error('❌ Failed to save AI analysis:', analysisError);
+          // Continue with statement upload even if analysis save fails
+        } finally {
+          setIsAnalyzing(false);
+        }
+      }
+
+      setPreviewData(null);
+      setUploadStatus("idle");
+      setUploadProgress(0);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    } catch (error) {
+      console.error('Error saving statement:', error);
+      setErrorMessage(error instanceof Error ? error.message : "Failed to save statement");
     }
   };
 

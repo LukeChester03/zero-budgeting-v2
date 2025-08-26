@@ -139,7 +139,7 @@ export async function analyzePDFDocument(pdfFile: File, prompt: string): Promise
       },
     });
     
-    const result = await Promise.race([analysisPromise, timeoutPromise]) as any;
+    const result = await Promise.race([analysisPromise, timeoutPromise]) as { response: { text: () => string } };
     
     console.log('📤 Gemini response received, processing...');
     const response = await result.response;

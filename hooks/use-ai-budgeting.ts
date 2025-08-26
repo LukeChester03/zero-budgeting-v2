@@ -3,10 +3,16 @@ import { useAIStore } from '@/lib/store/ai-store';
 import { useAuth } from '@/lib/auth-context';
 import { useFirebaseStore } from '@/lib/store-firebase';
 import { AIService } from '@/lib/services/ai-service';
+import { useBankStatementStore } from '@/app/lib/bankStatementStore';
+import { useBankStatementAnalysisStore } from '@/app/lib/bankStatementAnalysisStore';
 
 export const useAIBudgeting = () => {
   const { user } = useAuth();
-  const { income: monthlyIncome } = useFirebaseStore();
+  const { income: monthlyIncome, debts } = useFirebaseStore();
+  
+  // Import bank statement stores
+  const { statements: bankStatements } = useBankStatementStore();
+  const { statementAnalyses } = useBankStatementAnalysisStore();
   
   const {
     preferences,
@@ -19,6 +25,7 @@ export const useAIBudgeting = () => {
     updatePreference,
     setCurrentStep,
     resetPreferences,
+    resetPreferencesOnly,
     checkExistingAnalysis,
     generateAnalysis,
     updatePreferences,
@@ -55,13 +62,13 @@ export const useAIBudgeting = () => {
     try {
       // Check if user has existing analysis
       console.log('🔍 Checking if user has existing analysis...');
-      const hasAnalysis = await AIService.hasExistingAnalysis(user.uid);
+      const existing = await AIService.getExistingAnalysis(user.uid);
+      const hasAnalysis = !!existing;
       console.log('📊 Has existing analysis:', hasAnalysis);
       
       if (hasAnalysis) {
         // User has existing analysis - check if it's actually complete
         console.log('🔄 Checking existing analysis completeness...');
-        const existing = await AIService.getExistingAnalysis(user.uid);
         if (existing) {
           const hasCompleteAnalysis = existing.aiAnalysis && existing.aiAnalysis.trim().length > 0;
           
@@ -74,58 +81,26 @@ export const useAIBudgeting = () => {
             // Analysis exists but is empty - regenerate it
             console.log('⚠️ Existing analysis is empty, regenerating...');
             
-            // Update preferences first
-            await AIService.updatePreferences(existing.id, {
-              preferences,
-              updatedAt: new Date().toISOString()
-            });
-            
             // Generate new analysis
             console.log('🤖 Generating new AI analysis...');
-            await generateAnalysis(user.uid, monthlyIncome);
-            
-            // Update with the generated analysis
-            if (aiAnalysis) {
-              console.log('🔄 Updating document with new analysis...');
-              await AIService.updatePreferences(existing.id, {
-                aiAnalysis,
-                updatedAt: new Date().toISOString()
-              });
-              console.log('✅ New analysis successfully saved to Firestore');
-            }
+            await generateAnalysis(user.uid, monthlyIncome, debts, bankStatements, statementAnalyses);
           }
         }
       } else {
-        // User has NO analysis - save preferences first, then generate analysis
-        console.log('🆕 No existing analysis found, creating new one...');
-        
-        // Save preferences to Firestore first
-        console.log('💾 Saving preferences to Firestore...');
-        const newDocId = await AIService.savePreferencesAndAnalysis(
-          user.uid, 
-          preferences, 
-          ''
-        );
-        console.log('✅ Preferences saved with document ID:', newDocId);
+        // User has NO analysis - generate analysis directly
+        console.log('🆕 No existing analysis found, generating new one...');
         
         // Generate analysis with single Gemini API call
         console.log('🤖 Generating AI analysis...');
-        await generateAnalysis(user.uid, monthlyIncome);
+        await generateAnalysis(user.uid, monthlyIncome, debts, bankStatements, statementAnalyses);
         
-        // Update with the generated analysis
-        if (aiAnalysis) {
-          console.log('🔄 Updating document with generated analysis...');
-          await AIService.updatePreferences(newDocId, {
-            aiAnalysis,
-            updatedAt: new Date().toISOString()
-          });
-          console.log('✅ Analysis successfully saved to Firestore');
-        }
+        // Wait a moment for the store to update
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
       
       // Move to final step
       console.log('🎯 Moving to final step...');
-      setCurrentStep(23); // Total questions + 1 for summary (23 questions + 1 summary = 24 total steps)
+      setCurrentStep(23); // Step 23 is the summary step (0-22 = 23 questions, 23 = summary)
     } catch (error) {
       console.error('❌ Error in handleSavePreferences:', error);
       setError(error instanceof Error ? error.message : 'Failed to save preferences');
@@ -134,7 +109,7 @@ export const useAIBudgeting = () => {
 
   // Handle next step
   const handleNext = useCallback(() => {
-    if (currentStep < 23) { // 23 questions (0-22), 24 is summary
+    if (currentStep < 23) { // 23 questions (0-22), 23 is summary
       setCurrentStep(currentStep + 1);
     }
   }, [currentStep, setCurrentStep]);
@@ -171,11 +146,18 @@ export const useAIBudgeting = () => {
     // Actions
     updatePreference,
     resetPreferences,
+    resetPreferencesOnly,
     handleSavePreferences,
     handleNext,
     handlePrevious,
     canProceed,
     clearError,
+    createAutomatedBudget: (userId: string, monthlyIncome: number) => 
+      generateAnalysis(userId, monthlyIncome).then(() => 
+        // After generating analysis, create the automated budget
+        // This is a placeholder - the actual implementation would be in the AI store
+        Promise.resolve({ success: true, budgetId: 'placeholder' })
+      ),
 
     // Computed
     isLastStep: currentStep === 22, // 22 questions (0-21), 23 is summary

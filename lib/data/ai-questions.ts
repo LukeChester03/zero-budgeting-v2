@@ -15,30 +15,47 @@ import {
   Users,
   Car,
   Stethoscope,
-  ShoppingBag,
   Building2,
-  Umbrella,
   FileText,
   Briefcase,
   Zap,
-  Calculator,
   CheckCircle,
   Plane,
   Gift,
   Gamepad2,
   BookOpen,
-  Dumbbell,
-  Coffee,
+  UtensilsCrossed,
   Wifi,
   Phone,
-  UtensilsCrossed
+  Droplets,
+  Lightbulb,
+  Bus,
+  Train,
+  Bike,
+  ShoppingBag,
+  Coffee,
+  Video,
+  Music,
+  Dumbbell,
+  BookOpenCheck,
+  GraduationCap as GraduationCapIcon,
+  Baby,
+  PawPrint,
+  Palette,
+  Camera,
+  Gamepad2 as GamepadIcon,
+  Plane as PlaneIcon,
+  Car as CarIcon,
+  Wrench,
+  Heart as HeartIcon,
+  Gift as GiftIcon
 } from 'lucide-react';
 
 export const AI_QUESTIONS: AIQuestion[] = [
   {
     id: 'welcome',
     title: 'Welcome to AI Budgeting Assistant',
-    description: 'I\'ll analyze your financial situation and create a personalized budget allocation strategy based on proven financial research.',
+    description: 'I\'ll analyze your actual financial situation and create a personalized budget allocation strategy based on your real expenses and goals.',
     type: 'welcome',
     icon: Brain,
     required: false
@@ -83,69 +100,183 @@ export const AI_QUESTIONS: AIQuestion[] = [
     ]
   },
   {
-    id: 'housingCosts',
-    title: 'What are your monthly housing costs?',
-    description: 'Include rent/mortgage, utilities, insurance, and maintenance.',
+    id: 'housingType',
+    title: 'What type of housing do you have?',
+    description: 'This helps determine what housing-related expenses you actually have.',
     type: 'radio',
     icon: Home,
     required: true,
     options: [
-      { value: 'low', label: 'Low (<30% of income)', description: 'Affordable housing costs', icon: Home },
-      { value: 'medium', label: 'Medium (30-40% of income)', description: 'Standard housing costs', icon: Home },
-      { value: 'high', label: 'High (>40% of income)', description: 'Expensive housing costs', icon: Home }
+      { value: 'rent', label: 'Renting', description: 'Pay rent, may include some utilities', icon: Home },
+      { value: 'mortgage', label: 'Mortgage', description: 'Pay mortgage, property tax, insurance', icon: Building2 },
+      { value: 'owned', label: 'Own Outright', description: 'No mortgage, just maintenance and taxes', icon: CheckCircle },
+      { value: 'living-with-family', label: 'Living with Family', description: 'Minimal housing costs', icon: Users },
+      { value: 'other', label: 'Other', description: 'Specify your housing situation', icon: Home }
+    ]
+  },
+  {
+    id: 'housingCosts',
+    title: 'What are your monthly housing costs?',
+    description: 'Enter your actual monthly housing expenses including rent/mortgage, property tax, and insurance.',
+    type: 'number',
+    icon: Home,
+    min: 0,
+    max: 10000,
+    step: 50,
+    placeholder: 'e.g., 1200',
+    required: true,
+    unit: '£',
+    helpText: 'This helps the AI allocate your budget more accurately based on your actual housing expenses.'
+  },
+  {
+    id: 'utilitiesIncluded',
+    title: 'Which utilities are included in your housing costs?',
+    description: 'Select all utilities that are already covered in your rent/mortgage payment.',
+    type: 'checkbox',
+    icon: Lightbulb,
+    required: true,
+    options: [
+      { value: 'electricity', label: 'Electricity', description: 'Power and lighting', icon: Zap },
+      { value: 'gas', label: 'Gas', description: 'Heating and cooking', icon: Zap },
+      { value: 'water', label: 'Water', description: 'Water and sewage', icon: Droplets },
+      { value: 'internet', label: 'Internet', description: 'WiFi and broadband', icon: Wifi },
+      { value: 'phone', label: 'Phone', description: 'Landline service', icon: Phone },
+      { value: 'none', label: 'None included', description: 'I pay all utilities separately', icon: AlertTriangle }
+    ]
+  },
+  {
+    id: 'separateUtilities',
+    title: 'Which utilities do you pay separately?',
+    description: 'Select all utilities you pay for separately from your housing costs.',
+    type: 'checkbox',
+    icon: Lightbulb,
+    required: false,
+    options: [
+      { value: 'electricity', label: 'Electricity', description: 'Power and lighting', icon: Zap },
+      { value: 'gas', label: 'Gas', description: 'Heating and cooking', icon: Zap },
+      { value: 'water', label: 'Water', description: 'Water and sewage', icon: Droplets },
+      { value: 'internet', label: 'Internet', description: 'WiFi and broadband', icon: Wifi },
+      { value: 'phone', label: 'Phone', description: 'Landline service', icon: Phone },
+      { value: 'none', label: 'None', description: 'All utilities are included', icon: CheckCircle }
+    ]
+  },
+  {
+    id: 'transportationType',
+    title: 'What is your primary mode of transportation?',
+    description: 'This determines your actual transportation costs.',
+    type: 'radio',
+    icon: Car,
+    required: true,
+    options: [
+      { value: 'car', label: 'Personal Car', description: 'Car payment, gas, insurance, maintenance', icon: Car },
+      { value: 'public-transit', label: 'Public Transportation', description: 'Bus, train, subway passes', icon: Bus },
+      { value: 'walking-biking', label: 'Walking/Biking', description: 'Minimal transport costs', icon: Bike },
+      { value: 'multiple', label: 'Multiple Options', description: 'Mix of car and public transit', icon: Train },
+      { value: 'other', label: 'Other', description: 'Specify your transportation method', icon: Car }
     ]
   },
   {
     id: 'transportationCosts',
     title: 'What are your monthly transportation costs?',
-    description: 'Include car payment, gas, insurance, maintenance, and public transit.',
-    type: 'radio',
+    description: 'Enter your actual monthly transportation expenses.',
+    type: 'number',
     icon: Car,
+    min: 0,
+    max: 2000,
+    step: 25,
+    placeholder: 'e.g., 300',
+    required: true,
+    unit: '£',
+    helpText: 'Include car payment, gas, insurance, maintenance, or public transit passes.'
+  },
+  {
+    id: 'healthcareType',
+    title: 'What type of healthcare coverage do you have?',
+    description: 'This affects your healthcare costs and insurance needs.',
+    type: 'radio',
+    icon: Stethoscope,
     required: true,
     options: [
-      { value: 'low', label: 'Low (<10% of income)', description: 'Minimal transport costs', icon: Car },
-      { value: 'medium', label: 'Medium (10-15% of income)', description: 'Standard transport costs', icon: Car },
-      { value: 'high', label: 'High (>15% of income)', description: 'High transport costs', icon: Car }
+      { value: 'employer', label: 'Employer Health Insurance', description: 'Covered through work', icon: Briefcase },
+      { value: 'private', label: 'Private Health Insurance', description: 'Individual policy', icon: Shield },
+      { value: 'nhs', label: 'NHS Only', description: 'No private insurance', icon: Stethoscope },
+      { value: 'none', label: 'No Health Insurance', description: 'Need to budget for medical costs', icon: AlertTriangle },
+      { value: 'other', label: 'Other', description: 'Specify your healthcare coverage', icon: Stethoscope }
     ]
   },
   {
     id: 'healthcareCosts',
     title: 'What are your monthly healthcare costs?',
-    description: 'Include insurance premiums, copays, medications, and medical expenses.',
-    type: 'radio',
+    description: 'Enter your actual monthly healthcare expenses including insurance premiums, medications, and medical costs.',
+    type: 'number',
     icon: Stethoscope,
+    min: 0,
+    max: 1000,
+    step: 25,
+    placeholder: 'e.g., 150',
     required: true,
-    options: [
-      { value: 'low', label: 'Low (<5% of income)', description: 'Minimal healthcare costs', icon: Stethoscope },
-      { value: 'medium', label: 'Medium (5-10% of income)', description: 'Standard healthcare costs', icon: Stethoscope },
-      { value: 'high', label: 'High (>10% of income)', description: 'High healthcare costs', icon: Stethoscope }
-    ]
+    unit: '£',
+    helpText: 'Include insurance premiums, prescriptions, doctor visits, and other medical expenses.'
   },
   {
     id: 'foodAndGroceries',
     title: 'What are your monthly food and grocery costs?',
-    description: 'Include groceries, dining out, and food delivery.',
-    type: 'radio',
+    description: 'Enter your actual monthly food expenses.',
+    type: 'number',
     icon: UtensilsCrossed,
+    min: 0,
+    max: 2000,
+    step: 25,
+    placeholder: 'e.g., 400',
     required: true,
+    unit: '£',
+    helpText: 'Include groceries, dining out, food delivery, and any other food-related expenses.'
+  },
+  {
+    id: 'subscriptions',
+    title: 'Which subscription services do you pay for monthly?',
+    description: 'Select all subscription services you currently use.',
+    type: 'checkbox',
+    icon: Wifi,
+    required: false,
     options: [
-      { value: 'low', label: 'Low (<10% of income)', description: 'Budget-conscious food spending', icon: UtensilsCrossed },
-      { value: 'medium', label: 'Medium (10-15% of income)', description: 'Balanced food spending', icon: UtensilsCrossed },
-      { value: 'high', label: 'High (>15% of income)', description: 'Premium food and dining', icon: UtensilsCrossed }
+      { value: 'streaming', label: 'Streaming Services', description: 'Netflix, Disney+, etc.', icon: Video },
+      { value: 'music', label: 'Music Services', description: 'Spotify, Apple Music, etc.', icon: Music },
+      { value: 'gaming', label: 'Gaming Services', description: 'Xbox Game Pass, PlayStation Plus', icon: GamepadIcon },
+      { value: 'software', label: 'Software Subscriptions', description: 'Adobe, Microsoft 365, etc.', icon: Zap },
+      { value: 'fitness', label: 'Fitness Memberships', description: 'Gym, fitness apps, etc.', icon: Dumbbell },
+      { value: 'education', label: 'Education Platforms', description: 'Coursera, Udemy, etc.', icon: BookOpenCheck },
+      { value: 'other', label: 'Other Subscriptions', description: 'Specify other services', icon: Wifi },
+      { value: 'none', label: 'No Subscriptions', description: 'I don\'t pay for any subscription services', icon: CheckCircle }
     ]
   },
   {
     id: 'entertainmentAndHobbies',
     title: 'What are your monthly entertainment and hobby costs?',
-    description: 'Include streaming services, hobbies, gym memberships, and leisure activities.',
-    type: 'radio',
+    description: 'Enter your actual monthly entertainment expenses.',
+    type: 'number',
     icon: Gamepad2,
+    min: 0,
+    max: 1000,
+    step: 25,
+    placeholder: 'e.g., 150',
     required: true,
-    options: [
-      { value: 'low', label: 'Low (<5% of income)', description: 'Minimal entertainment spending', icon: Gamepad2 },
-      { value: 'medium', label: 'Medium (5-10% of income)', description: 'Moderate entertainment', icon: Gamepad2 },
-      { value: 'high', label: 'High (>10% of income)', description: 'Premium entertainment', icon: Gamepad2 }
-    ]
+    unit: '£',
+    helpText: 'Include hobbies, entertainment, gym memberships, and leisure activities.'
+  },
+  {
+    id: 'shoppingAndPersonal',
+    title: 'What are your monthly shopping and personal care costs?',
+    description: 'Enter your actual monthly personal expenses.',
+    type: 'number',
+    icon: ShoppingBag,
+    min: 0,
+    max: 1000,
+    step: 25,
+    placeholder: 'e.g., 200',
+    required: true,
+    unit: '£',
+    helpText: 'Include clothing, personal care, household items, and other shopping expenses.'
   },
   {
     id: 'currentSavings',
@@ -175,34 +306,36 @@ export const AI_QUESTIONS: AIQuestion[] = [
     ]
   },
   {
-    id: 'debtAmount',
-    title: 'What is your total high-interest debt (credit cards, personal loans)?',
-    description: 'This helps prioritize debt payoff vs. other financial goals.',
-    type: 'radio',
+    id: 'debtConfirmation',
+    title: 'Debt Confirmation',
+    description: 'We found the following debts in your system. Do you want to include these in your budget for debt payoff?',
+    type: 'debtConfirmation',
     icon: CreditCard,
     required: true,
-    options: [
-      { value: 'none', label: 'No high-interest debt', description: 'Debt-free or only low-interest debt', icon: CheckCircle },
-      { value: 'low', label: 'Low debt (<20% of income)', description: 'Manageable debt level', icon: CreditCard },
-      { value: 'medium', label: 'Medium debt (20-50% of income)', description: 'Significant debt to address', icon: AlertTriangle },
-      { value: 'high', label: 'High debt (>50% of income)', description: 'High debt requiring immediate attention', icon: AlertTriangle }
-    ]
+    debtConfirmationInfo: {
+      title: 'Your Current Debts',
+      description: 'Review your existing debts and confirm if you want to include them in your budget allocation.',
+      confirmButtonText: 'Yes, include these debts',
+      skipButtonText: 'No, skip debt payoff',
+      returnMessage: 'Your debt information will be used to create accurate budget allocations.'
+    }
   },
   {
-    id: 'debtTypes',
-    title: 'What types of debt do you have?',
-    description: 'Select all that apply to understand your debt situation.',
-    type: 'checkbox',
-    icon: CreditCard,
+    id: 'goalsConfirmation',
+    title: 'Goals Confirmation',
+    description: 'We found the following savings goals in your system. Do you want to include these in your budget for monthly contributions?',
+    type: 'goalsConfirmation',
+    icon: Target,
     required: true,
-    options: [
-      { value: 'credit-cards', label: 'Credit Cards', description: 'High-interest revolving debt', icon: CreditCard },
-      { value: 'personal-loans', label: 'Personal Loans', description: 'Unsecured personal debt', icon: FileText },
-      { value: 'student-loans', label: 'Student Loans', description: 'Education-related debt', icon: GraduationCap },
-      { value: 'car-loans', label: 'Car Loans', description: 'Vehicle financing', icon: Car },
-      { value: 'mortgage', label: 'Mortgage', description: 'Home financing', icon: Home },
-      { value: 'none', label: 'No Debt', description: 'Debt-free', icon: CheckCircle }
-    ]
+    goalsConfirmationInfo: {
+      title: 'Your Current Goals',
+      description: 'Review your existing savings goals and confirm if you want to include them in your budget allocation.',
+      confirmButtonText: 'Yes, include these goals',
+      skipButtonText: 'No, skip goal contributions',
+      noGoalsButtonText: 'I don\'t have any goals yet',
+      returnMessage: 'Your goal information will be used to create accurate budget allocations.',
+      noGoalsMessage: 'No problem! We\'ll focus on building your emergency fund and essential expenses first. You can always add goals later.'
+    }
   },
   {
     id: 'investmentExperience',
@@ -264,15 +397,15 @@ export const AI_QUESTIONS: AIQuestion[] = [
     icon: Target,
     required: true,
     options: [
-      { value: 'vacation', label: 'Vacation Fund', description: 'Save for travel and experiences', icon: Plane },
-      { value: 'education', label: 'Education Fund', description: 'Save for courses or certifications', icon: BookOpen },
-      { value: 'wedding', label: 'Wedding Fund', description: 'Save for wedding expenses', icon: Gift },
+      { value: 'vacation', label: 'Vacation Fund', description: 'Save for travel and experiences', icon: PlaneIcon },
+      { value: 'education', label: 'Education Fund', description: 'Save for courses or certifications', icon: BookOpenCheck },
+      { value: 'wedding', label: 'Wedding Fund', description: 'Save for wedding expenses', icon: GiftIcon },
       { value: 'business', label: 'Business Fund', description: 'Start or expand a business', icon: Building2 },
-      { value: 'car', label: 'Car Fund', description: 'Save for vehicle purchase or upgrade', icon: Car },
-      { value: 'home-improvement', label: 'Home Improvement', description: 'Renovations and repairs', icon: Home },
-      { value: 'children', label: 'Children\'s Fund', description: 'Save for children\'s future needs', icon: Users },
-      { value: 'charity', label: 'Charitable Giving', description: 'Support causes you care about', icon: Heart },
-      { value: 'hobbies', label: 'Hobby Fund', description: 'Invest in your interests and passions', icon: Gamepad2 },
+      { value: 'car', label: 'Car Fund', description: 'Save for vehicle purchase or upgrade', icon: CarIcon },
+      { value: 'home-improvement', label: 'Home Improvement', description: 'Renovations and repairs', icon: Wrench },
+      { value: 'children', label: 'Children\'s Fund', description: 'Save for children\'s future needs', icon: Baby },
+      { value: 'charity', label: 'Charitable Giving', description: 'Support causes you care about', icon: HeartIcon },
+      { value: 'hobbies', label: 'Hobby Fund', description: 'Invest in your interests and passions', icon: Palette },
       { value: 'technology', label: 'Technology Fund', description: 'Save for gadgets and tech upgrades', icon: Zap },
       { value: 'other', label: 'Other', description: 'Specify additional secondary goals', icon: Target }
     ]
@@ -309,7 +442,7 @@ export const AI_QUESTIONS: AIQuestion[] = [
     options: [
       { value: 'emergency', label: 'Emergency Fund', description: 'Financial safety net', icon: Shield },
       { value: 'short-term', label: 'Short-term Goals', description: 'Vacations, car repairs, etc.', icon: Calendar },
-      { value: 'long-term', label: 'Long-term Goals', description: 'Retirement, children\'s education', icon: GraduationCap },
+      { value: 'long-term', label: 'Long-term Goals', description: 'Retirement, children\'s education', icon: GraduationCapIcon },
       { value: 'investment', label: 'Investment Growth', description: 'Building wealth over time', icon: TrendingUp }
     ]
   },
@@ -340,5 +473,13 @@ export const AI_QUESTIONS: AIQuestion[] = [
       { value: 'income', label: 'Income stability', description: 'Concerned about job security or income', icon: DollarSign },
       { value: 'none', label: 'No major concerns', description: 'Financially stable and confident', icon: CheckCircle }
     ]
+  },
+  {
+    id: 'summary',
+    title: 'Questionnaire Complete!',
+    description: 'Great job! You\'ve completed the AI budgeting questionnaire. Review your answers below and click "Generate AI Analysis" to get your personalized budget recommendations.',
+    type: 'summary',
+    icon: CheckCircle,
+    required: false
   }
 ];

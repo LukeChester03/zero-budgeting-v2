@@ -8,8 +8,8 @@ export const AIPreferencesSchema = z.object({
   secondaryGoalsOther: z.string().optional(),
   riskTolerance: z.number().min(1).max(10),
   emergencyFund: z.string().min(1, "Emergency fund amount is required"),
-  debtAmount: z.string().min(1, "Debt amount is required"),
-  debtTypes: z.array(z.string()).min(1, "At least one debt type is required"),
+  debtConfirmation: z.string().min(1, "Debt confirmation is required"),
+  goalsConfirmation: z.string().min(1, "Goals confirmation is required"),
   savingsPriority: z.string().min(1, "Savings priority is required"),
   investmentExperience: z.string().min(1, "Investment experience is required"),
   timeHorizon: z.string().min(1, "Time horizon is required"),
@@ -17,11 +17,18 @@ export const AIPreferencesSchema = z.object({
   financialStressors: z.array(z.string()).min(1, "At least one financial stressor is required"),
   age: z.number().min(18).max(100),
   familySize: z.number().min(1).max(10),
-  housingCosts: z.string().min(1, "Housing costs is required"),
-  transportationCosts: z.string().min(1, "Transportation costs is required"),
-  healthcareCosts: z.string().min(1, "Healthcare costs is required"),
-  foodAndGroceries: z.string().min(1, "Food and grocery costs is required"),
-  entertainmentAndHobbies: z.string().min(1, "Entertainment and hobby costs is required"),
+  housingType: z.string().min(1, "Housing type is required"),
+  housingCosts: z.number().min(0, "Housing costs must be a positive number"),
+  utilitiesIncluded: z.array(z.string()).min(1, "At least one utility inclusion option is required"),
+  separateUtilities: z.array(z.string()).optional(),
+  transportationType: z.string().min(1, "Transportation type is required"),
+  transportationCosts: z.number().min(0, "Transportation costs must be a positive number"),
+  healthcareType: z.string().min(1, "Healthcare type is required"),
+  healthcareCosts: z.number().min(0, "Healthcare costs must be a positive number"),
+  foodAndGroceries: z.number().min(0, "Food and grocery costs must be a positive number"),
+  subscriptions: z.array(z.string()).optional(),
+  entertainmentAndHobbies: z.number().min(0, "Entertainment and hobby costs must be a positive number"),
+  shoppingAndPersonal: z.number().min(0, "Shopping and personal costs must be a positive number"),
   currentSavings: z.string().min(1, "Current savings is required"),
   employmentStatus: z.string().min(1, "Employment status is required")
 });
@@ -39,11 +46,22 @@ export interface StoredAIPreferences {
 
 export interface AIAnalysisData {
   summary: string;
+  financialSnapshot: {
+    monthlyIncome: number;
+    totalExpenses: number;
+    disposableIncome: number;
+    savingsRate: number;
+    debtToIncomeRatio: number;
+    emergencyFundStatus: string;
+    financialHealthScore: number;
+  };
   priorities: Array<{
     rank: number;
     category: string;
     reason: string;
     action: string;
+    impact: string;
+    urgency: string;
   }>;
   budgetDistribution: {
     emergencyFund: { percentage: number; amount: number; description: string };
@@ -54,37 +72,69 @@ export interface AIAnalysisData {
   };
   riskAssessment: {
     level: string;
+    score: number;
     factors: string[];
     mitigation: string;
+    monitoring: string;
+  };
+  strategicInsights: {
+    strengths: string[];
+    weaknesses: string[];
+    opportunities: string[];
+    threats: string[];
   };
   timeline: {
     emergencyFund: string;
     debtElimination: string;
     investmentGrowth: string;
     retirementReadiness: string;
+    goalAchievement: string;
   };
-  progressMetrics: string[];
-  recommendations: string[];
-  autoAllocationRules: Array<{
-    category: string;
-    rule: string;
-    priority: number;
+  progressMetrics: Array<{
+    metric: string;
+    currentValue: number;
+    targetValue: number;
+    timeline: string;
+    progress: number;
+    actions: string[];
   }>;
-  // Budget allocation integration
+  recommendations: {
+    immediate: string[];
+    shortTerm: string[];
+    longTerm: string[];
+    lifestyle: string[];
+    income: string[];
+  };
   budgetAllocations: Array<{
     category: string;
     amount: number;
     percentage: number;
     priority: number;
     description: string;
+    optimization: string;
+    alternatives: string;
   }>;
+  financialAdvisorFeedback: {
+    overallAssessment: string;
+    keyStrengths: string[];
+    criticalAreas: string[];
+    successFactors: string[];
+    warningSigns: string[];
+    encouragement: string;
+  };
+  marketContext: {
+    currentEconomicClimate: string;
+    interestRateImpact: string;
+    inflationConsiderations: string;
+    marketOpportunities: string;
+  };
 }
 
 export interface AIQuestion {
   id: string;
   title: string;
   description: string;
-  type: 'welcome' | 'radio' | 'checkbox' | 'slider' | 'text' | 'textarea' | 'number';
+  type: 'welcome' | 'radio' | 'checkbox' | 'slider' | 'text' | 'textarea' | 'number' | 'redirect' | 'debtConfirmation' | 'goalsConfirmation' | 'summary';
   icon: any;
   options?: Array<{
     value: string;
@@ -99,8 +149,33 @@ export interface AIQuestion {
   placeholder?: string;
   validation?: string;
   rows?: number;
+  unit?: string;
+  helpText?: string;
   required?: boolean;
   autoPopulate?: boolean; // For fields that should auto-populate from existing data
+  redirectInfo?: {
+    title: string;
+    description: string;
+    buttonText: string;
+    route: string;
+    returnMessage: string;
+  };
+  debtConfirmationInfo?: {
+    title: string;
+    description: string;
+    confirmButtonText: string;
+    skipButtonText: string;
+    returnMessage: string;
+  };
+  goalsConfirmationInfo?: {
+    title: string;
+    description: string;
+    confirmButtonText: string;
+    skipButtonText: string;
+    noGoalsButtonText: string;
+    returnMessage: string;
+    noGoalsMessage: string;
+  };
 }
 
 export interface AIAnalysisResponse {
