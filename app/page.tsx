@@ -15,6 +15,7 @@ import MonthlyIncomeInput from "@/app/components/MonthlyIncomeInput";
 import AuthModal from "@/app/components/AuthModal";
 import WhereDoIStartGuide from "@/app/components/WhereDoIStartGuide";
 import AIBudgetingAssistantModal from "@/app/components/AIBudgetingAssistantModal";
+import FinancialHealthSummary from "@/app/components/FinancialHealthSummary";
 
 
 import { 
@@ -499,6 +500,13 @@ export default function Home() {
         </div>
 
       </section>
+
+      {/* Financial Health Summary */}
+      <div className="container mx-auto px-4 sm:px-6 py-8">
+        <motion.section variants={itemVariants}>
+          <FinancialHealthSummary />
+        </motion.section>
+      </div>
 
       <div className="container mx-auto px-4 sm:px-6 pb-8 sm:pb-12">
         {/* Quick Actions */}
